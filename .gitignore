@@ -1,0 +1,41 @@
+# 秘密
+.env
+.env.*
+!.env.example
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Node / web (Sprint 4 落地)
+node_modules/
+.next/
+.turbo/
+dist/
+build/
+
+# 数据 / 模型 / 训练产物
+data/
+runs/
+*.ckpt
+*.safetensors
+*.bin
+*.pt
+wandb/
+
+# 操作系统 / 编辑器
+.DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Docker / 本地
+*.log
+postgres-data/
+redis-data/
