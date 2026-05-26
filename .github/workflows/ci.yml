@@ -1,0 +1,66 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+env:
+  PYTHONUNBUFFERED: "1"
+  TRAILLENS_USE_STUBS: "1"   # CI 不走外网 MCP,见 tests/test_consistency.py
+
+jobs:
+  # ---- 1. 契约 + 单测(零依赖,最快反馈) ----
+  contract-tests:
+    name: Contract tests (no deps)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - name: Run zero-dep test suite
+        run: python -m unittest discover tests -v
+      - name: Smoke test agent demo
+        run: python -m packages.agents.traillens_agents.demo > /dev/null
+
+  # ---- 2. 装上 pydantic + Pillow,跑同一套(确保两条路径都绿) ----
+  full-tests:
+    name: Full tests (pydantic + Pillow)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+      - name: Install lightweight deps
+        run: |
+          python -m pip install --upgrade pip
+          pip install "pydantic>=2.7" "Pillow>=10.0"
+      - run: python -m unittest discover tests -v
+      - run: python -m packages.agents.traillens_agents.demo > /dev/null
+      - name: Aesthetic demo-metric (PLCC/SRCC)
+        run: cd packages/aesthetic && python train_qalign_lora.py demo-metric
+
+  # ---- 3. 文档与契约形态守护(catch 漂移) ----
+  doc-and-shape-checks:
+    name: Docs & shape
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: README links all resolve
+        run: |
+          set -e
+          # README 引用的关键路径必须存在
+          for p in packages/agents/traillens_agents/state/schema.py \
+                   packages/agents/traillens_agents/orchestrator.py \
+                   packages/aesthetic/train_qalign_lora.py \
+                   docs/ARCHITECTURE.md docs/PRODUCT_PLAN.md; do
+            test -e "$p" || { echo "missing: $p"; exit 1; }
+          done
+      - name: Mermaid sanity (basic — count code blocks)
+        run: |
+          for f in docs/ARCHITECTURE.md; do
+            grep -c '```mermaid' "$f" || true
+          done
