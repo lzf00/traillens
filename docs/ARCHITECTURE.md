@@ -2,7 +2,7 @@
 
 > 本文件是**面向 reviewer 与未来 contributor 的"系统外貌图"**——
 > 想了解"为什么这样做"与"路线图"请读 [PRODUCT_PLAN.md](PRODUCT_PLAN.md)；
-> 想了解"赛道判断"请读 [../compass_artifact_wf.md](../compass_artifact_wf.md)。
+> 想了解"赛道判断"请读 [COMPASS.md](COMPASS.md)。
 
 ---
 
@@ -210,5 +210,5 @@ README.md              30s 卖点 + Quick Start          [面向陌生人]
 │   ├── PRODUCT_PLAN.md  产品定位 + Sprint 计划         [面向团队/未来的自己]
 │   ├── EVAL.md          (TODO) 美学模型指标表           [面向 reviewer / 招聘方]
 │   └── RESEARCH.md      (TODO) 美学微调研究笔记         [面向 ML reviewer]
-└── compass_artifact_wf.md  赛道调研报告                [战略背景]
+└── docs/COMPASS.md      赛道调研报告                  [战略背景]
 ```

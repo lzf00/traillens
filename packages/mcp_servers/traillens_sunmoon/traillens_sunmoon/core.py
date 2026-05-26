@@ -41,12 +41,15 @@ class SunMoonResult:
 # --------------------------------------------------------------------------- #
 # 公共入口
 # --------------------------------------------------------------------------- #
-def sun_moon_times(lat: float, lon: float, date: str) -> dict[str, Any]:
+def sun_moon_times(lat: float, lon: float, date: str, tz: str | None = None) -> dict[str, Any]:
     """对给定 lat/lon/date 返回日出日落 + 蓝/金时刻。
 
     Args:
         lat, lon: 十进制度数 (-90~90 / -180~180)
         date: ISO 日期 "YYYY-MM-DD"
+        tz: IANA 时区(如 "Asia/Shanghai")。
+            - 给定时:输出时间转换为该时区
+            - 不给定时:astral 路径用 UTC;NOAA 路径用 UTC(notes.tz 标记)
     """
     try:
         target = datetime.strptime(date, "%Y-%m-%d").date()
@@ -54,10 +57,51 @@ def sun_moon_times(lat: float, lon: float, date: str) -> dict[str, Any]:
         return SunMoonResult(source="fallback", notes={"error": "bad_date"}).to_dict()
 
     result = _try_astral(lat, lon, target)
-    if result is not None:
-        return result.to_dict()
+    if result is None:
+        result = _noaa_compute(lat, lon, target)
 
-    return _noaa_compute(lat, lon, target).to_dict()
+    if tz and result.sunrise:
+        try:
+            result = _shift_to_tz(result, target, tz)
+        except Exception as e:  # noqa: BLE001
+            result.notes["tz_error"] = str(e)
+
+    return result.to_dict()
+
+
+def _shift_to_tz(result: SunMoonResult, target: date_t, tz_name: str) -> SunMoonResult:
+    """把 result 内的 HH:MM 字段(原 UTC)转换到指定 tz。"""
+    try:
+        from zoneinfo import ZoneInfo  # py3.9+
+    except ImportError:
+        return result
+    tz = ZoneInfo(tz_name)
+    base_utc = datetime(target.year, target.month, target.day, tzinfo=timezone.utc)
+
+    def shift_one(hhmm: str | None) -> str | None:
+        if not hhmm:
+            return None
+        try:
+            h, m = (int(x) for x in hhmm.split(":"))
+            local = (base_utc + timedelta(hours=h, minutes=m)).astimezone(tz)
+            return local.strftime("%H:%M")
+        except (ValueError, AttributeError):
+            return hhmm
+
+    def shift_window(w: str | None) -> str | None:
+        if not w or "-" not in w:
+            return w
+        a, b = w.split("-", 1)
+        return f"{shift_one(a)}-{shift_one(b)}"
+
+    result.sunrise = shift_one(result.sunrise)
+    result.sunset = shift_one(result.sunset)
+    result.golden_hour_am = shift_window(result.golden_hour_am)
+    result.golden_hour_pm = shift_window(result.golden_hour_pm)
+    result.blue_hour_am = shift_window(result.blue_hour_am)
+    result.blue_hour_pm = shift_window(result.blue_hour_pm)
+    result.notes["tz"] = tz_name
+    return result
 
 
 def moon_phase(date: str) -> dict[str, Any]:

@@ -58,6 +58,12 @@ class TestApiSmoke(unittest.TestCase):
         self.assertEqual(r3.status_code, 200)
         self.assertEqual(len(r3.json()), 5)
 
+    def test_get_photo_returns_404_for_unknown(self):
+        r = self.client.post("/v1/trails", json={"name": "photo-detail-test"})
+        tid = r.json()["id"]
+        r2 = self.client.get(f"/v1/trails/{tid}/photos/nonexistent")
+        self.assertEqual(r2.status_code, 404)
+
     def test_trail_404(self):
         r = self.client.get("/v1/trails/nonexistent")
         self.assertEqual(r.status_code, 404)

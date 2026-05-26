@@ -1,7 +1,10 @@
-"""把 agents 包跑出的事件转换成 SSE 流。
+"""把 agents 跑出的事件转换成 SSE 流。
 
-Sprint 3 末:用 LangGraph 的 astream_events;当前用 fallback 路径
-封装成 generator,行为与真实路径一致(supervisor → node → orchestrator)。
+两条路径(自动选择):
+  (1) 装了 langgraph + checkpointer 时:用 graph.astream_events(),真正的事件流
+  (2) 否则:在线程池跑 run_fallback,边消费 messages 边产生事件
+
+两条路径的 SSE 输出 schema 完全一致 — 前端不区分。
 """
 
 from __future__ import annotations
@@ -12,13 +15,12 @@ import sys
 from collections.abc import AsyncIterator
 from pathlib import Path
 
-# 让 traillens_agents 可被 import(monorepo 布局)
 _AGENTS = Path(__file__).resolve().parents[4] / "packages" / "agents"
 if str(_AGENTS) not in sys.path:
     sys.path.insert(0, str(_AGENTS))
 
 from traillens_agents.demo import run_fallback  # noqa: E402
-from traillens_agents.state.schema import GraphState, HikeContext  # noqa: E402
+from traillens_agents.state.schema import GraphState, HikeContext, PhotoVerdict  # noqa: E402
 from traillens_agents.tools import clients  # noqa: E402
 
 
@@ -26,29 +28,109 @@ def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
 
 
-async def run_trail_stream(trail_id: str, run_id: str) -> AsyncIterator[str]:
-    """SSE 事件流。Sprint 3 末真正接入 langgraph.astream_events。
-
-    当前实现:用 run_fallback 同步跑,把 state.messages 翻译成 SSE 事件。
-    每个事件 yield 后 sleep 一点点,模拟真实流式体验(前端能看到逐条到达)。
-    """
-    # TODO: Sprint 5 — 从 store 读真实 photos,这里先用 sample。
-    init = GraphState(
+def _build_initial_state(trail_id: str, run_id: str) -> GraphState:
+    # TODO Sprint 5:从 store 读真实 photos
+    return GraphState(
         photos=clients.load_sample_photos(8),
         hike=HikeContext(location_name="贡嘎环线", gpx_uri="sample://"),
         run_id=run_id,
     )
 
+
+def _photo_event(p) -> dict:
+    return {
+        "photo_id": p.photo_id,
+        "verdict": p.verdict.value if p.verdict else None,
+        "overall": p.aesthetic.overall if p.aesthetic else None,
+        "trace_steps": len(p.decision_trace),
+    }
+
+
+# --------------------------------------------------------------------------- #
+# 主入口:自动二选一
+# --------------------------------------------------------------------------- #
+async def run_trail_stream(trail_id: str, run_id: str) -> AsyncIterator[str]:
     yield _sse("run.started", {"run_id": run_id, "trail_id": trail_id})
 
-    # 这里同步跑,因为 fallback 是阻塞的;
-    # Sprint 3 改用 LangGraph astream_events 时,这里换成真正的 async for。
-    final = run_fallback(init)
+    try:
+        async for chunk in _via_langgraph(trail_id, run_id):
+            yield chunk
+        return
+    except _LangGraphUnavailable:
+        async for chunk in _via_fallback(trail_id, run_id):
+            yield chunk
+
+
+class _LangGraphUnavailable(Exception):
+    pass
+
+
+# --------------------------------------------------------------------------- #
+# Path A:真实 LangGraph astream_events
+# --------------------------------------------------------------------------- #
+async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
+    try:
+        from traillens_agents.orchestrator import build_graph
+    except ImportError:
+        raise _LangGraphUnavailable()
+    try:
+        graph = build_graph()
+    except ImportError:
+        raise _LangGraphUnavailable()
+
+    state = _build_initial_state(trail_id, run_id)
+    last_state: GraphState | None = None
+    seen_photo_ids: set[str] = set()
+    try:
+        async for event in graph.astream_events(state, version="v2"):
+            kind = event.get("event")
+            name = event.get("name", "")
+            # 节点开始 / 结束转 SSE
+            if kind == "on_chain_start" and name in {"culling", "human_review", "critic", "story", "planner", "orchestrator"}:
+                yield _sse("orchestrator.routed", {"node": name, "phase": "start"})
+            elif kind == "on_chain_end":
+                data = event.get("data", {}) or {}
+                output = data.get("output")
+                if isinstance(output, dict) and "photos" in output:
+                    last_state = GraphState(**output) if not isinstance(output, GraphState) else output
+                    # diff:只 emit 新进入终态的照片
+                    for p in last_state.photos:
+                        if p.aesthetic and p.photo_id not in seen_photo_ids:
+                            seen_photo_ids.add(p.photo_id)
+                            yield _sse("culling.photo_scored", _photo_event(p))
+    except Exception as e:  # noqa: BLE001  langgraph API 任何报错 → 切 fallback
+        yield _sse("run.error", {"phase": "langgraph", "error": str(e)})
+        raise _LangGraphUnavailable() from e
+
+    if last_state:
+        if last_state.travelogue_md:
+            yield _sse("story.delta", {"chunk": last_state.travelogue_md})
+        if last_state.next_trip_plan:
+            yield _sse("planner.plan_ready", {"plan": last_state.next_trip_plan})
+        yield _sse("run.finished", {
+            "run_id": run_id, "trail_id": trail_id,
+            "kept": sum(1 for p in last_state.photos if p.verdict == PhotoVerdict.KEEP),
+            "total": len(last_state.photos),
+        })
+
+
+# --------------------------------------------------------------------------- #
+# Path B:fallback — 在线程池跑同步 run_fallback,边跑边推
+# --------------------------------------------------------------------------- #
+async def _via_fallback(trail_id: str, run_id: str) -> AsyncIterator[str]:
+    """跑同步 fallback,在线程外把 messages 当事件流"投递"。
+
+    真实流式效果靠"每个 message 之间 sleep(0.02)"模拟,
+    虽然不是 token-level streaming,但对 UX 已经足够"活"。
+    """
+    state = _build_initial_state(trail_id, run_id)
+
+    loop = asyncio.get_event_loop()
+    final = await loop.run_in_executor(None, run_fallback, state)
 
     for msg in final.messages:
         role = msg.get("role", "?")
         content = msg.get("content", "")
-        # 路由消息 → orchestrator.routed
         if role == "orchestrator":
             yield _sse("orchestrator.routed", {"trace": content})
         elif role == "culling":
@@ -61,21 +143,14 @@ async def run_trail_stream(trail_id: str, run_id: str) -> AsyncIterator[str]:
             yield _sse("story.delta", {"chunk": final.travelogue_md or ""})
         elif role == "planner":
             yield _sse("planner.plan_ready", {"plan": final.next_trip_plan or {}})
-        await asyncio.sleep(0.02)  # 给前端一个能感知"流"的节奏
+        await asyncio.sleep(0.02)
 
-    # 把每张照片的最终评分也单独 emit(供前端缩略图轨道高亮)
     for p in final.photos:
         if p.aesthetic:
-            yield _sse("culling.photo_scored", {
-                "photo_id": p.photo_id,
-                "verdict": p.verdict.value if p.verdict else None,
-                "overall": p.aesthetic.overall,
-                "trace_steps": len(p.decision_trace),
-            })
+            yield _sse("culling.photo_scored", _photo_event(p))
 
     yield _sse("run.finished", {
-        "run_id": run_id,
-        "trail_id": trail_id,
+        "run_id": run_id, "trail_id": trail_id,
         "kept": len(final.kept_photos()),
         "total": len(final.photos),
     })

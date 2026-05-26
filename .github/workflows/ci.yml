@@ -43,7 +43,24 @@ jobs:
       - name: Aesthetic demo-metric (PLCC/SRCC)
         run: cd packages/aesthetic && python train_qalign_lora.py demo-metric
 
-  # ---- 3. 文档与契约形态守护(catch 漂移) ----
+  # ---- 3. 前端 typecheck + lint(不真启 dev server) ----
+  web-typecheck:
+    name: Web typecheck
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package.json
+      - run: npm install --no-audit --no-fund
+      - run: npm run typecheck
+
+  # ---- 4. 文档与契约形态守护(catch 漂移) ----
   doc-and-shape-checks:
     name: Docs & shape
     runs-on: ubuntu-latest
@@ -56,7 +73,7 @@ jobs:
           for p in packages/agents/traillens_agents/state/schema.py \
                    packages/agents/traillens_agents/orchestrator.py \
                    packages/aesthetic/train_qalign_lora.py \
-                   docs/ARCHITECTURE.md docs/PRODUCT_PLAN.md; do
+                   docs/ARCHITECTURE.md docs/PRODUCT_PLAN.md docs/COMPASS.md; do
             test -e "$p" || { echo "missing: $p"; exit 1; }
           done
       - name: Mermaid sanity (basic — count code blocks)

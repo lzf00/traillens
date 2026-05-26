@@ -1,6 +1,6 @@
 # TrailLens 产品 & 工程开发方案
 
-> 这份文档不重复 `compass_artifact_wf.md`（那是赛道调研）。
+> 这份文档不重复 [`COMPASS.md`](COMPASS.md)（那是赛道调研）。
 > 这份是**可直接执行到代码层的产品 + 工程方案**，覆盖定位、设计语言、AI 原生交互、架构契约、商业化、12 周冲刺计划。
 > 目标读者：未来 12 周内会动这个仓库的人（你自己 / 协作者 / Claude Code）。
 
@@ -522,7 +522,7 @@ class GraphState(BaseModel):
 
 ---
 
-## 附录 A. 与现有 `compass_artifact_wf.md` 的关系
+## 附录 A. 与现有 [`COMPASS.md`](COMPASS.md) 的关系
 
 - compass 是**赛道地图**（为什么做这个赛道）
 - 本文件是**施工蓝图**（这周这个月具体做什么）

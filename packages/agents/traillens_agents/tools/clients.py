@@ -161,45 +161,25 @@ _WEATHER_STUBS = [
 
 
 def fetch_weather(lat: float, lon: float, date: str | None = None) -> str:
-    """返回适合写入游记的天气短句。
-
-    实现:
-      1) 优先调 traillens-weather (Open-Meteo,无需 key)
-      2) 网络失败 / 包未装时降级为 stub 字符串
-    *** Story 节点期望 str 返回,这里保持 str 形态向后兼容 ***
-    """
+    """返回适合写入游记的天气短句。通过 MCPClient 抽象调 traillens-weather。"""
     if _USE_STUBS:
         return random.choice(_WEATHER_STUBS)
-    try:
-        from traillens_weather import weather_at  # type: ignore
-    except ImportError:
-        return random.choice(_WEATHER_STUBS)
-    try:
-        out = weather_at(lat, lon, date)
-    except Exception:  # noqa: BLE001  网络/解析任何异常都 fallback
-        return random.choice(_WEATHER_STUBS)
-    if out.get("source") == "stub":
+    from .mcp_client import client
+
+    out = client("traillens_weather").call("weather_at", lat=lat, lon=lon, date=date)
+    if not out or out.get("source") == "stub":
         return random.choice(_WEATHER_STUBS)
     return out.get("summary") or random.choice(_WEATHER_STUBS)
 
 
 def sun_moon_times(lat: float, lon: float, date: str) -> dict:
-    """返回蓝/金时刻 dict。Planner 节点核心依赖。
-
-    实现:
-      1) 优先调 traillens-sunmoon (NOAA 公式,零依赖)
-      2) 包未装 → 内置 stub
-    """
+    """蓝/金时刻 dict。通过 MCPClient 抽象调 traillens-sunmoon。"""
     if _USE_STUBS:
         return _sun_moon_stub()
-    try:
-        from traillens_sunmoon import sun_moon_times as _real  # type: ignore
-    except ImportError:
-        return _sun_moon_stub()
-    try:
-        return _real(lat, lon, date)
-    except Exception:  # noqa: BLE001
-        return _sun_moon_stub()
+    from .mcp_client import client
+
+    out = client("traillens_sunmoon").call("sun_moon_times", lat=lat, lon=lon, date=date)
+    return out or _sun_moon_stub()
 
 
 def _sun_moon_stub() -> dict:

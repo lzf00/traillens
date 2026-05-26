@@ -19,7 +19,8 @@ for p in packages/agents/traillens_agents/state/schema.py \
          packages/agents/traillens_agents/orchestrator.py \
          packages/aesthetic/train_qalign_lora.py \
          docs/ARCHITECTURE.md \
-         docs/PRODUCT_PLAN.md; do
+         docs/PRODUCT_PLAN.md \
+         docs/COMPASS.md; do
   test -e "$p" || { echo "missing: $p"; exit 1; }
 done
 echo "doc paths: OK"

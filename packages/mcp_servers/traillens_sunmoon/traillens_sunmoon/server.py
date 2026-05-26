@@ -14,13 +14,14 @@ from .core import moon_phase, sun_moon_times
 TOOL_SCHEMA = [
     {
         "name": "sun_moon_times",
-        "description": "给定 lat/lon/date 返回日出/日落 + 蓝/金时刻窗口(HH:MM-HH:MM)。",
+        "description": "给定 lat/lon/date 返回日出/日落 + 蓝/金时刻窗口(HH:MM-HH:MM)。tz 可选(IANA 时区,默认 UTC)。",
         "inputSchema": {
             "type": "object",
             "properties": {
                 "lat": {"type": "number"},
                 "lon": {"type": "number"},
                 "date": {"type": "string", "description": "YYYY-MM-DD"},
+                "tz": {"type": "string", "description": "IANA tz e.g. Asia/Shanghai"},
             },
             "required": ["lat", "lon", "date"],
         },
@@ -39,7 +40,7 @@ TOOL_SCHEMA = [
 
 def dispatch(name: str, args: dict[str, Any]) -> dict[str, Any]:
     if name == "sun_moon_times":
-        return sun_moon_times(args["lat"], args["lon"], args["date"])
+        return sun_moon_times(args["lat"], args["lon"], args["date"], tz=args.get("tz"))
     if name == "moon_phase":
         return moon_phase(args["date"])
     raise ValueError(f"unknown_tool:{name}")

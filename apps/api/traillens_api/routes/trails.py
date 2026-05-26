@@ -62,6 +62,20 @@ def list_photos(
     return store.list_photos(trail_id, user_id=user.id)
 
 
+@router.get("/{trail_id}/photos/{photo_id}", response_model=PhotoOut)
+def get_photo(
+    trail_id: str,
+    photo_id: str,
+    user: CurrentUser = Depends(get_current_user),
+) -> PhotoOut:
+    """单张照片详情 — 含完整 decision_trace,前端时间线组件用。"""
+    photos = store.list_photos(trail_id, user_id=user.id)
+    for p in photos:
+        if p.photo_id == photo_id:
+            return p
+    raise HTTPException(404, "photo_not_found")
+
+
 @router.post("/{trail_id}/run")
 def run_trail(
     trail_id: str,
