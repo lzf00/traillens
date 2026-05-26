@@ -1,0 +1,35 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+html,
+body {
+  @apply bg-bg-base text-fg-primary font-sans antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+
+/* 照片永远显示原比例 + 1px 内边框 */
+.photo-frame {
+  @apply ring-1 ring-divider rounded-md overflow-hidden;
+}
+
+/* Agent trace 的等宽部分 */
+.mono {
+  @apply font-mono text-xs text-fg-secondary;
+}
+
+/* Canvas 状态条 */
+.status-pill {
+  @apply inline-flex items-center gap-1.5 rounded-md bg-bg-raised
+         px-2.5 py-1 text-xs text-fg-secondary;
+}
+
+/* keyboard hint */
+kbd {
+  @apply rounded border border-divider bg-bg-raised px-1.5 py-0.5
+         font-mono text-[10px] text-fg-secondary;
+}
