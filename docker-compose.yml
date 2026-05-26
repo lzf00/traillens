@@ -1,0 +1,62 @@
+# 本地开发依赖。生产部署见 docs/ARCHITECTURE.md §5。
+#
+# 使用:
+#   make dev    # 启动全部
+#   make down   # 停止
+#   docker compose logs -f postgres
+#
+# 注意:apps/api 与 apps/web 在 Sprint 4 才接入,届时在此 compose 文件加 service。
+
+services:
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: traillens-postgres
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-traillens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-traillens_dev}
+      POSTGRES_DB: ${POSTGRES_DB:-traillens}
+    ports:
+      - "${POSTGRES_PORT:-5432}:5432"
+    volumes:
+      - traillens_pg_data:/var/lib/postgresql/data
+      - ./infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-traillens}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    container_name: traillens-redis
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    volumes:
+      - traillens_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # Langfuse 自托管(LLM 可观测性,§4 部署拓扑表)
+  # 默认注释掉,需要时 docker compose --profile observability up
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: traillens-langfuse
+    profiles: ["observability"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD:-traillens_dev}@postgres:5432/${POSTGRES_DB:-traillens}_langfuse
+      NEXTAUTH_URL: http://localhost:3001
+      NEXTAUTH_SECRET: ${LANGFUSE_SECRET:-change_me_in_prod}
+      SALT: ${LANGFUSE_SALT:-change_me_in_prod}
+    ports:
+      - "3001:3000"
+
+volumes:
+  traillens_pg_data:
+  traillens_redis_data:
