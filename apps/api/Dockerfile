@@ -12,7 +12,7 @@ RUN pip install --no-cache-dir --prefix=/install \
     "fastapi>=0.110" "uvicorn[standard]>=0.27" "pydantic>=2.7" \
     "sqlalchemy>=2.0" "psycopg[binary]>=3.1" "alembic>=1.13" \
     "httpx>=0.27" "redis>=5.0" \
-    "openai>=1.50" "qiniu>=7.13" \
+    "openai>=1.50" "cos-python-sdk-v5>=1.9" "qiniu>=7.13" \
     "sentry-sdk[fastapi]>=2.0" "langfuse>=2.0"
 
 # ---------- runtime ----------

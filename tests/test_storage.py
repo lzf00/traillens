@@ -91,6 +91,67 @@ class TestPresignSigV4(unittest.TestCase):
 
 
 @unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
+class TestCosPresign(unittest.TestCase):
+    """腾讯云 COS 路径 — fallback(SigV4)即使无 cos sdk 也能签 URL。"""
+
+    def setUp(self):
+        os.environ["COS_SECRET_ID"] = "AKIDfake"
+        os.environ["COS_SECRET_KEY"] = "secretfake"
+        os.environ["COS_BUCKET"] = "traillens-photos-1305566123"
+        os.environ["COS_REGION"] = "ap-shanghai"
+        from traillens_api.config import get_settings
+        get_settings.cache_clear()
+
+    def tearDown(self):
+        for k in ("COS_SECRET_ID", "COS_SECRET_KEY", "COS_BUCKET", "COS_REGION", "COS_DOMAIN"):
+            os.environ.pop(k, None)
+        from traillens_api.config import get_settings
+        get_settings.cache_clear()
+
+    def test_get_url_signed_with_sigv4(self):
+        from traillens_api.services.storage import presign
+
+        url = presign("get", "users/u/trails/t/p.jpg", expires=600)
+        self.assertIsNotNone(url)
+        # COS endpoint 形态
+        self.assertIn("traillens-photos-1305566123.cos.ap-shanghai.myqcloud.com", url)
+        # 必含 SigV4 参数(无 SDK 时走 fallback)或 COS SDK 风格签名
+        self.assertTrue("X-Amz-Signature=" in url or "q-signature=" in url)
+
+    def test_cos_takes_priority_over_qiniu_and_r2(self):
+        os.environ["QINIU_ACCESS_KEY"] = "should_not_use"
+        os.environ["QINIU_SECRET_KEY"] = "should_not_use"
+        os.environ["R2_ACCESS_KEY_ID"] = "should_not_use"
+        os.environ["R2_SECRET_ACCESS_KEY"] = "should_not_use"
+        try:
+            from traillens_api.services.storage import presign
+            url = presign("get", "u/t/p.jpg", expires=600)
+            self.assertIn(".cos.ap-shanghai.myqcloud.com", url)
+        finally:
+            for k in ("QINIU_ACCESS_KEY", "QINIU_SECRET_KEY",
+                      "R2_ACCESS_KEY_ID", "R2_SECRET_ACCESS_KEY"):
+                os.environ.pop(k, None)
+
+    def test_public_url_uses_cos_domain_when_set(self):
+        from traillens_api.services.storage import public_url
+        os.environ["COS_DOMAIN"] = "photos.traillens.zorotreeking.online"
+        try:
+            url = public_url("u/t/p.jpg")
+            self.assertEqual(url, "https://photos.traillens.zorotreeking.online/u/t/p.jpg")
+        finally:
+            os.environ.pop("COS_DOMAIN", None)
+
+    def test_public_url_falls_back_to_default_cos_host(self):
+        from traillens_api.services.storage import public_url
+        # 无 COS_DOMAIN → 用默认 <bucket>.cos.<region>.myqcloud.com
+        url = public_url("u/t/p.jpg")
+        self.assertEqual(
+            url,
+            "https://traillens-photos-1305566123.cos.ap-shanghai.myqcloud.com/u/t/p.jpg",
+        )
+
+
+@unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
 class TestQiniuPresign(unittest.TestCase):
     """七牛云路径 — 即使无 qiniu SDK 也能签 GET URL(纯 hmac-sha1)。"""
 

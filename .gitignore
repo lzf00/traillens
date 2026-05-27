@@ -23,6 +23,11 @@ build/
 # 数据 / 模型 / 训练产物
 data/
 runs/
+
+# 标注照片(不上传 GitHub;保留 .gitkeep + 说明)
+packages/annotation/photos/*
+!packages/annotation/photos/.gitkeep
+!packages/annotation/photos/PUT_PHOTOS_HERE.md
 *.ckpt
 *.safetensors
 *.bin
