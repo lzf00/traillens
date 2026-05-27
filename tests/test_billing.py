@@ -57,6 +57,14 @@ class TestBillingEndpoints(unittest.TestCase):
         self.assertEqual(r.status_code, 503)
 
 
+try:
+    import pydantic  # noqa: F401
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
+
+
+@unittest.skipUnless(HAS_PYDANTIC, "billing imports config which uses pydantic")
 class TestPriceMap(unittest.TestCase):
     def test_unknown_price_defaults_to_free(self):
         from traillens_api.services.billing import PRICE_PLAN_MAP

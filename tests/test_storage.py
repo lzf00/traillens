@@ -12,7 +12,14 @@ API_PKG = ROOT / "apps" / "api"
 if str(API_PKG) not in sys.path:
     sys.path.insert(0, str(API_PKG))
 
+try:
+    import pydantic  # noqa: F401
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
 
+
+@unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
 class TestObjectKey(unittest.TestCase):
     def test_layered_path_structure(self):
         from traillens_api.services.storage import make_object_key
@@ -35,6 +42,7 @@ class TestObjectKey(unittest.TestCase):
         self.assertTrue(k.endswith(".malic"))
 
 
+@unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
 class TestPresignWithoutCreds(unittest.TestCase):
     """无 R2 凭证时应返回 None,而不是崩。"""
 
@@ -50,6 +58,7 @@ class TestPresignWithoutCreds(unittest.TestCase):
                 if v: os.environ[k] = v
 
 
+@unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
 class TestPresignSigV4(unittest.TestCase):
     """SigV4 fallback 实现 — 即使无 boto3 也能产出合法 query 串。"""
 

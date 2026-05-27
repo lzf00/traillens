@@ -23,14 +23,14 @@ class TestContract7ServeAlignsAestheticScore(unittest.TestCase):
         from serve import ScoreResponse
         from traillens_agents.state.schema import AestheticScore
 
-        agent_fields = set(
-            getattr(AestheticScore, "model_fields", None)
-            or AestheticScore.__dataclass_fields__
-        )
-        serve_fields = set(
-            getattr(ScoreResponse, "model_fields", None)
-            or ScoreResponse.__dataclass_fields__
-        )
+        def fields_of(cls):
+            return set(
+                getattr(cls, "model_fields", None)
+                or getattr(cls, "__dataclass_fields__", None)
+                or cls.__annotations__   # serve.py 在无 pydantic 时的 stub
+            )
+        agent_fields = fields_of(AestheticScore)
+        serve_fields = fields_of(ScoreResponse)
         diff = serve_fields ^ agent_fields
         self.assertFalse(
             diff,

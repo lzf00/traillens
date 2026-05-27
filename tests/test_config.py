@@ -12,7 +12,14 @@ API_PKG = ROOT / "apps" / "api"
 if str(API_PKG) not in sys.path:
     sys.path.insert(0, str(API_PKG))
 
+try:
+    import pydantic  # noqa: F401
+    HAS_PYDANTIC = True
+except ImportError:
+    HAS_PYDANTIC = False
 
+
+@unittest.skipUnless(HAS_PYDANTIC, "config.py needs pydantic")
 class TestSettings(unittest.TestCase):
     def test_default_values(self):
         from traillens_api.config import Settings
