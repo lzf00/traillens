@@ -1,0 +1,34 @@
+name: ✨ Feature request
+description: 提议一个新功能 / 改进
+labels: ["enhancement", "triage"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: 你正在解决什么问题
+      description: 不要先描述方案,先描述用户痛点
+      placeholder: 跑完 trail 后我没法把游记直接发到小红书,得手动复制粘贴。
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: 提议的方案
+      description: 一句话方案 + 你考虑过的备选
+      placeholder: |
+        方案:游记页面加"导出到小红书"按钮,生成图文混排的草稿。
+        备选 A:做小红书 OAuth 直接发布(太重)
+        备选 B:仅复制带格式的文本(初版可行)
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: 优先级(自评)
+      options:
+        - 🔥 阻塞我使用核心功能
+        - 高(显著影响体验)
+        - 中(nice to have)
+        - 低(只是想到)
+    validations:
+      required: true

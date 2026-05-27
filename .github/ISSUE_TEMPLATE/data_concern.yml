@@ -1,0 +1,35 @@
+name: 📷 美学模型评判争议
+description: 模型给某张照片打分明显不对 / 隐含偏见
+labels: ["model", "bias-audit"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please attach the photo or a public URL. 我们会:
+        1. 把 case 加入 audit 集
+        2. 公开记录在 docs/EVAL.md 的 "known failure modes"
+        3. 下一轮训练考虑作为对抗样本
+
+  - type: textarea
+    id: photo
+    attributes:
+      label: 照片 URL / 附件
+      description: 公开链接(Unsplash / 500px / 你的博客)或拖照片到这里上传
+    validations:
+      required: true
+
+  - type: input
+    id: model_score
+    attributes:
+      label: 模型给的 overall 分
+
+  - type: input
+    id: your_score
+    attributes:
+      label: 你认为合理的 overall 分
+
+  - type: textarea
+    id: why
+    attributes:
+      label: 为什么你认为模型错了
+      placeholder: 这是张典型的逆光剪影,构图、光影、情感都很强,模型给 4 太低了。

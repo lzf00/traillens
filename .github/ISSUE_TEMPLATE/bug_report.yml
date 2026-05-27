@@ -1,0 +1,45 @@
+name: 🐛 Bug report
+description: 报告一个不符合预期的行为
+labels: ["bug", "triage"]
+body:
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: 现象
+      description: 实际发生了什么 vs 你期望发生什么
+      placeholder: |
+        我跑 `make demo` 时,Culling 节点把所有照片都标 reject。
+        我期望:看到大致 60-80% 的照片被 keep。
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: 复现步骤
+      placeholder: |
+        1. git clone https://github.com/.../traillens
+        2. python3 -m unittest discover tests   # 这里就报错
+    validations:
+      required: true
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: 模块
+      options:
+        - agents (LangGraph / 节点)
+        - aesthetic (模型 / serve)
+        - mcp-* (任一 MCP server)
+        - apps/api
+        - apps/web
+        - apps/lightroom-plugin
+        - tests / CI
+        - docs
+        - 不确定
+
+  - type: input
+    id: env
+    attributes:
+      label: 环境
+      placeholder: macOS 14.5 / Python 3.11.6 / Node 20.10

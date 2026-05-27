@@ -1,0 +1,12 @@
+# 默认 owner
+*                                @liuzifei
+
+# 算法/数据 — 任何动这些目录的 PR 必须我 review(防偏见 / 防 schema 漂移)
+/packages/aesthetic/             @liuzifei
+/packages/annotation/            @liuzifei
+/docs/RESEARCH.md                @liuzifei
+/docs/EVAL.md                    @liuzifei
+
+# 跨模块契约 — 这些是 schema 的单一事实来源
+/packages/agents/traillens_agents/state/schema.py  @liuzifei
+/tests/test_consistency.py                          @liuzifei

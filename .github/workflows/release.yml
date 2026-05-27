@@ -1,0 +1,42 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Tag → GitHub Release + CHANGELOG snippet
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0   # 需要历史来抽 changelog
+
+      - name: Extract CHANGELOG section for this tag
+        id: changelog
+        run: |
+          TAG="${GITHUB_REF_NAME}"
+          # 找 CHANGELOG.md 里 [<TAG>] 开始到下一个 [...] 之间的内容
+          awk -v tag="$TAG" '
+            $0 ~ "^## \\[" tag "\\]" { p=1; next }
+            p && /^## \[/ { exit }
+            p
+          ' CHANGELOG.md > .release_notes.md
+          if [ ! -s .release_notes.md ]; then
+            echo "⚠ no CHANGELOG entry for $TAG; using fallback" >&2
+            echo "See [CHANGELOG.md](CHANGELOG.md) for details." > .release_notes.md
+          fi
+          echo "notes_file=.release_notes.md" >> $GITHUB_OUTPUT
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          body_path: ${{ steps.changelog.outputs.notes_file }}
+          generate_release_notes: false   # 我们用 CHANGELOG.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}  # v0.1.0-rc1 标 prerelease
