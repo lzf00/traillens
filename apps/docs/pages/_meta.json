@@ -1,0 +1,11 @@
+{
+  "index": "概览",
+  "getting-started": "快速开始",
+  "architecture": "架构",
+  "agents": "Agents",
+  "aesthetic-model": "美学模型",
+  "mcp-servers": "MCP servers",
+  "api": "HTTP API",
+  "lightroom-plugin": "Lightroom 插件",
+  "contributing": "贡献"
+}

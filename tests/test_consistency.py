@@ -23,6 +23,7 @@ from pathlib import Path
 # 测试期间默认走 stub,避免依赖外网(否则 CI 在无网络环境会假阳性失败)
 # 个别测试可在本地 unset 这个变量来测真实 MCP 集成
 os.environ.setdefault("TRAILLENS_USE_STUBS", "1")
+os.environ.setdefault("TRAILLENS_DISABLE_RATELIMIT", "1")
 
 ROOT = Path(__file__).resolve().parents[1]
 AGENTS = ROOT / "packages/agents"

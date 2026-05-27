@@ -27,6 +27,12 @@
     "pick_photo": "选择一张照片",
     "kbd_help": "切换 · 帮助"
   },
+  "Library": {
+    "title": "语义搜索",
+    "placeholder": "试试:川西秋天逆光 / 冰川蓝时刻 / 风光极简留白...",
+    "searching": "搜索中…",
+    "empty_hint": "暂无结果。语义搜索 Sprint 5 末才接 pgvector,当前是 stub。"
+  },
   "Settings": {
     "title": "Settings",
     "subscription": "订阅",

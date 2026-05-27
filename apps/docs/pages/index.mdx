@@ -1,0 +1,31 @@
+---
+title: TrailLens 文档
+---
+
+# TrailLens 文档
+
+> 把一整次徒步的素材丢进去 → AI 自动选片、点评、生成游记,并规划你下次的拍摄计划。
+
+## 这份文档面向谁
+
+- **首次接触**:先读 [快速开始](/getting-started)。
+- **想看架构**:[架构](/architecture) → [Agents](/agents)。
+- **想用 API**:[HTTP API](/api)。
+- **想做摄影师**(目标用户):去 [traillens.app](https://traillens.app),不需要读这里。
+- **想贡献代码**:[贡献](/contributing)。
+
+## 核心概念速查
+
+| 概念 | 一句话 | 详情 |
+|---|---|---|
+| Trail | 一次徒步 = 一个 agent run 容器 | [架构 §4](/architecture#41-模块责任划分) |
+| Culling Agent | 过滤模糊/重复/废片,8 维美学评分 | [Agents](/agents) |
+| MCP server | 把外部能力封装成 LLM 可调工具 | [MCP servers](/mcp-servers) |
+| Aesthetic model | Q-Align + landscape LoRA | [美学模型](/aesthetic-model) |
+| HITL | Human-in-the-loop 人工裁决待审照片 | [Agents §HumanReview](/agents#humanreview-node) |
+
+## 项目状态
+
+- 当前版本:0.0.1(scaffolding 完成,等首个 release)
+- 路线图:[CHANGELOG.md](https://github.com/your-handle/traillens/blob/main/CHANGELOG.md)
+- 测试:78+ 单元/契约/集成,全套 < 2s offline

@@ -19,6 +19,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
 from .routes import billing, health, library, photos, settings as settings_route, trails
+import os
+
+from .middleware.rate_limit import RateLimitMiddleware
 from .services.observability import init_sentry
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -58,6 +61,12 @@ app.add_middleware(
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
+)
+
+# 测试时通过 TRAILLENS_DISABLE_RATELIMIT=1 关掉(不然 60 个 test 撞限流)
+app.add_middleware(
+    RateLimitMiddleware,
+    enabled=os.environ.get("TRAILLENS_DISABLE_RATELIMIT") != "1",
 )
 
 app.include_router(health.router)

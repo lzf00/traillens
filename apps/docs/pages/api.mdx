@@ -1,0 +1,52 @@
+# HTTP API
+
+> 完整 OpenAPI spec:[api.traillens.app/docs](https://api.traillens.app/docs)(Swagger UI) · [/openapi.json](https://api.traillens.app/openapi.json)
+> 类型化 TS client:[`apps/web/lib/api/`](https://github.com/your-handle/traillens/tree/main/apps/web/lib/api)
+
+## 认证
+
+```
+Authorization: Bearer <token>
+```
+
+或浏览器 cookie `better-auth.session`。开发期默认走 fake user(`TRAILLENS_ENV=local`)。
+
+## SSE 端点
+
+`POST /v1/trails/{id}/run` 返回 `text/event-stream`,事件格式:
+
+```
+event: run.started
+data: {"run_id":"...","trail_id":"..."}
+
+event: culling.photo_scored
+data: {"photo_id":"p001","verdict":"keep","overall":7.8,"trace_steps":2}
+
+event: run.finished
+data: {"run_id":"...","kept":6,"total":8}
+```
+
+事件类型(`schemas/trail.py::TrailRunEvent.event` Literal):
+- `run.started` / `run.finished` / `run.error`
+- `orchestrator.routed`
+- `culling.progress` / `culling.photo_scored`
+- `human_review.required`
+- `critic.photo_critiqued`
+- `story.delta` / `planner.plan_ready`
+
+## 配额与限流
+
+- 配额超限 → HTTP 429:`{detail: {error: "quota_exceeded", remaining, requested, upgrade_url}}`
+- API 调用限流 → HTTP 429 + `Retry-After` header(默认 120/min,SSE 启动 10/min)
+
+## TypeScript 客户端
+
+```ts
+import { api } from "@/lib/api/client";
+
+const { data, error } = await api.GET("/v1/trails/{trail_id}", {
+  params: { path: { trail_id: "xxx" } },
+});
+```
+
+每次 api schema 改动后:`cd apps/web && npm run api:sync` 重生成类型。

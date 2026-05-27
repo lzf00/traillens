@@ -1,27 +1,26 @@
 import Link from "next/link";
+import { getTranslations } from "next-intl/server";
 
 /**
  * Landing page。一屏内说清:是什么 / 怎么用 / 凭什么相信。
- * 设计参考 PRODUCT_PLAN.md §2.2(不使用渐变 hero,大留白 + serif 标题混排)。
+ * 文案由 messages/{zh,en}.json 提供;参考 PRODUCT_PLAN.md §2.2 视觉系统。
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const t = await getTranslations("Landing");
   return (
     <main className="min-h-dvh px-6 py-24 md:px-12">
       <div className="mx-auto max-w-3xl">
         <p className="mono mb-8">v0.0.1 · build in public</p>
 
         <h1 className="font-display text-5xl leading-tight text-fg-primary md:text-7xl">
-          The AI darkroom for
+          {t("tagline_l1")}
           <br />
-          <span className="text-accent-aurora">landscape photographers</span>
+          <span className="text-accent-aurora">{t("tagline_l2")}</span>
           <br />
-          who hike.
+          {t("tagline_l3")}
         </h1>
 
-        <p className="mt-8 text-lg text-fg-secondary md:text-xl">
-          把一整次徒步的素材丢进去 — AI 自动选片、点评、生成游记,
-          并规划你下次的拍摄计划。
-        </p>
+        <p className="mt-8 text-lg text-fg-secondary md:text-xl">{t("subtitle")}</p>
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
           <Link
@@ -29,7 +28,7 @@ export default function HomePage() {
             className="rounded-md bg-accent-aurora px-5 py-3 text-sm font-medium text-bg-base
                        transition-all duration-DEFAULT ease-trail hover:bg-accent-aurora/90"
           >
-            打开示例 Trail
+            {t("cta_demo")}
           </Link>
           <Link
             href="https://github.com/your-handle/traillens"
@@ -37,23 +36,14 @@ export default function HomePage() {
             className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
                        transition-all hover:border-accent-glacier hover:text-accent-glacier"
           >
-            GitHub →
+            {t("cta_github")}
           </Link>
         </div>
 
         <div className="mt-24 grid gap-8 text-sm text-fg-secondary md:grid-cols-3">
-          <Feature
-            title="多智能体"
-            body="Culling / Critic / Story / Planner — LangGraph supervisor 编排,HITL 中断可恢复。"
-          />
-          <Feature
-            title="自研美学模型"
-            body="Q-Align + landscape LoRA。开源权重,可自托管,PLCC 目标 > 0.78。"
-          />
-          <Feature
-            title="MCP 一等公民"
-            body="EXIF / Weather / Sun-Moon 都是独立 MCP server,可被任何 LLM 客户端直接装。"
-          />
+          <Feature title={t("feature_agents_title")} body={t("feature_agents_body")} />
+          <Feature title={t("feature_model_title")} body={t("feature_model_body")} />
+          <Feature title={t("feature_mcp_title")} body={t("feature_mcp_body")} />
         </div>
       </div>
     </main>

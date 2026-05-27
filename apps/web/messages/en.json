@@ -27,6 +27,12 @@
     "pick_photo": "Select a photo",
     "kbd_help": "navigate · help"
   },
+  "Library": {
+    "title": "Semantic search",
+    "placeholder": "try: golden hour silhouette / blue hour glacier / minimal seascape",
+    "searching": "Searching…",
+    "empty_hint": "No results yet. Real semantic search wires in Sprint 5; current implementation is a stub."
+  },
   "Settings": {
     "title": "Settings",
     "subscription": "Subscription",
