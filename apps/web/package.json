@@ -20,7 +20,10 @@
     "@radix-ui/react-slot": "^1.1.0",
     "@radix-ui/react-tooltip": "^1.1.0",
     "@radix-ui/react-dialog": "^1.1.0",
-    "ai": "^3.4.0"
+    "ai": "^3.4.0",
+    "next-intl": "^3.20.0",
+    "posthog-js": "^1.150.0",
+    "@sentry/nextjs": "^8.30.0"
   },
   "devDependencies": {
     "@types/node": "^22.0.0",

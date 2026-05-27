@@ -1,0 +1,44 @@
+{
+  "Landing": {
+    "tagline_l1": "The AI darkroom for",
+    "tagline_l2": "landscape photographers",
+    "tagline_l3": "who hike.",
+    "subtitle": "Drop in an entire hike's worth of photos — AI culls, critiques, writes the trip report, and plans your return.",
+    "cta_demo": "Open demo trail",
+    "cta_github": "GitHub →",
+    "feature_agents_title": "Multi-agent",
+    "feature_agents_body": "Culling / Critic / Story / Planner — orchestrated via LangGraph supervisor with HITL interrupts.",
+    "feature_model_title": "Domain-tuned aesthetic model",
+    "feature_model_body": "Q-Align + landscape LoRA. Open weights, self-hostable, target PLCC > 0.78.",
+    "feature_mcp_title": "MCP first-class",
+    "feature_mcp_body": "EXIF / Weather / Sun-Moon are standalone MCP servers any LLM client can install."
+  },
+  "Nav": {
+    "trails": "Trails",
+    "library": "Library",
+    "settings": "Settings",
+    "docs": "Docs"
+  },
+  "Canvas": {
+    "run": "Run",
+    "running": "Running",
+    "thumb_count": "{n} photos",
+    "event_count": "{n} events",
+    "pick_photo": "Select a photo",
+    "kbd_help": "navigate · help"
+  },
+  "Settings": {
+    "title": "Settings",
+    "subscription": "Subscription",
+    "current_free": "Currently on {plan} · {quota} photos/mo",
+    "upgrade_pro": "Upgrade to Pro · $19/mo",
+    "upgrade_pro_plus": "Upgrade to Pro+ · $49/mo",
+    "api_tokens": "API Tokens",
+    "tokens_hint": "For the Lightroom plugin / scripts / your own tools.",
+    "create_token": "Create",
+    "token_one_time_warning": "⚠ This is the only time this token is shown. Copy it now.",
+    "no_tokens": "No tokens yet",
+    "piaa": "Personal style preference (PIAA)",
+    "piaa_hint": "After 50 annotations we train a personal aesthetic model just for you."
+  }
+}

@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .routes import health, photos, trails
+from .routes import billing, health, library, photos, settings as settings_route, trails
 from .services.observability import init_sentry
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -26,7 +26,29 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name
 app = FastAPI(
     title="TrailLens API",
     version=__version__,
-    description="多智能体摄影助手 HTTP API。前端契约见 docs/ARCHITECTURE.md §4.2。",
+    description=(
+        "多智能体摄影助手 HTTP API。\n\n"
+        "**核心契约**:\n"
+        "- 所有时间戳:UTC,ISO 8601\n"
+        "- `text/event-stream` 端点用 W3C SSE,每条消息 `event: <name>\\ndata: <json>\\n\\n`\n"
+        "- 认证:`Authorization: Bearer <token>` 或 cookie `better-auth.session`\n"
+        "- 配额超限:HTTP 429 + `{detail: {error, remaining, requested, upgrade_url}}`\n\n"
+        "更多见 [docs/ARCHITECTURE.md](https://github.com/your-handle/traillens/blob/main/docs/ARCHITECTURE.md#42-数据契约)。"
+    ),
+    contact={"name": "TrailLens", "url": "https://traillens.app", "email": "hello@traillens.app"},
+    license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
+    openapi_tags=[
+        {"name": "health", "description": "存活探针 / 就绪检查。"},
+        {"name": "trails", "description": "Trail = 一次徒步 = 一个 agent run 容器。"},
+        {"name": "photos", "description": "跨 trail 的照片操作(下载 / 公开分享)。"},
+        {"name": "library", "description": "跨 trail 的语义搜索(Sprint 5 接 pgvector)。"},
+        {"name": "settings", "description": "用户 API token + PIAA 偏好。"},
+        {"name": "billing", "description": "Stripe checkout + webhook。"},
+    ],
+    servers=[
+        {"url": "https://api.traillens.app", "description": "production"},
+        {"url": "http://localhost:8000", "description": "local dev"},
+    ],
 )
 init_sentry(app)  # 没 SENTRY_DSN 自动 no-op
 
@@ -41,3 +63,6 @@ app.add_middleware(
 app.include_router(health.router)
 app.include_router(trails.router, prefix="/v1/trails", tags=["trails"])
 app.include_router(photos.router, prefix="/v1/photos", tags=["photos"])
+app.include_router(billing.router, prefix="/v1/billing", tags=["billing"])
+app.include_router(library.router, prefix="/v1/library", tags=["library"])
+app.include_router(settings_route.router, prefix="/v1/settings", tags=["settings"])

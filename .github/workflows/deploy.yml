@@ -1,0 +1,94 @@
+name: Deploy
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:  # 手动触发(panic deploy)
+
+# 同时只跑一个 deploy,防止前后版本互相覆盖
+concurrency:
+  group: deploy-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  # ---- 1. 必须等 CI 全绿才 deploy ----
+  wait-for-ci:
+    name: Wait for CI
+    runs-on: ubuntu-latest
+    steps:
+      - uses: lewagon/wait-on-check-action@v1.3.4
+        with:
+          ref: ${{ github.sha }}
+          check-name: 'Contract tests (no deps)'
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          wait-interval: 15
+
+  # ---- 2. Deploy API → Fly.io ----
+  deploy-api:
+    needs: [wait-for-ci]
+    name: Deploy API to Fly.io
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: superfly/flyctl-actions/setup-flyctl@master
+      - name: Deploy
+        run: flyctl deploy --remote-only --config apps/api/fly.toml --dockerfile apps/api/Dockerfile
+        env:
+          FLY_API_TOKEN: ${{ secrets.FLY_API_TOKEN }}
+
+  # ---- 3. Deploy web → Vercel ----
+  deploy-web:
+    needs: [wait-for-ci]
+    name: Deploy web to Vercel
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20' }
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+      - name: Pull env
+        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Build
+        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Deploy
+        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+
+  # ---- 4. 发布 OpenAPI spec 为 release artifact ----
+  publish-openapi:
+    needs: [deploy-api]
+    name: Publish OpenAPI spec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with: { python-version: '3.11' }
+      - run: pip install fastapi pydantic
+      - run: python scripts/export_openapi.py --out openapi.json
+      - uses: actions/upload-artifact@v4
+        with:
+          name: openapi-spec
+          path: openapi.json
+          retention-days: 90
+
+  # ---- 5. Smoke test 生产 endpoint(发现挂了立刻知道) ----
+  smoke-test-prod:
+    needs: [deploy-api, deploy-web]
+    name: Smoke test production
+    runs-on: ubuntu-latest
+    steps:
+      - name: API healthz
+        run: |
+          curl -fsS --max-time 10 https://api.traillens.app/healthz \
+            | grep -q '"status":"ok"' || (echo "API unhealthy!" && exit 1)
+      - name: Web 200
+        run: |
+          curl -fsS --max-time 10 https://traillens.app/ > /dev/null \
+            || (echo "Web down!" && exit 1)
+      - name: OG card 200
+        run: |
+          curl -fsS --max-time 10 "https://traillens.app/og?title=smoke" > /dev/null \
+            || (echo "OG broken!" && exit 1)

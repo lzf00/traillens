@@ -56,6 +56,14 @@ api: ## 启 FastAPI dev server(localhost:8000)
 api-test: ## 跑 api 集成测试(需要 fastapi + httpx)
 	$(PY) -m unittest tests.test_api -v
 
+# ---- Sprint 2: 数据标注 ---------------------------------------------------
+.PHONY: sprint2 sprint2-finalize
+sprint2: ## 启动 Sprint 2 标注流水线(放完照片后跑这条)
+	bash scripts/sprint2_kickoff.sh
+
+sprint2-finalize: ## 标注完成后:算 α + 切分训练集
+	bash scripts/sprint2_kickoff.sh --finalize
+
 # ---- MCP server -----------------------------------------------------------
 .PHONY: mcp-exif mcp-exif-install
 mcp-exif: ## 在前台启 traillens-exif(stdio loop;Ctrl-C 退出)

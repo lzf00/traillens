@@ -1,0 +1,44 @@
+{
+  "Landing": {
+    "tagline_l1": "The AI darkroom for",
+    "tagline_l2": "landscape photographers",
+    "tagline_l3": "who hike.",
+    "subtitle": "把一整次徒步的素材丢进去 — AI 自动选片、点评、生成游记,并规划你下次的拍摄计划。",
+    "cta_demo": "打开示例 Trail",
+    "cta_github": "GitHub →",
+    "feature_agents_title": "多智能体",
+    "feature_agents_body": "Culling / Critic / Story / Planner — LangGraph supervisor 编排,HITL 中断可恢复。",
+    "feature_model_title": "自研美学模型",
+    "feature_model_body": "Q-Align + landscape LoRA。开源权重,可自托管,PLCC 目标 > 0.78。",
+    "feature_mcp_title": "MCP 一等公民",
+    "feature_mcp_body": "EXIF / Weather / Sun-Moon 都是独立 MCP server,可被任何 LLM 客户端直接装。"
+  },
+  "Nav": {
+    "trails": "Trails",
+    "library": "Library",
+    "settings": "Settings",
+    "docs": "Docs"
+  },
+  "Canvas": {
+    "run": "Run",
+    "running": "运行中",
+    "thumb_count": "{n} 张",
+    "event_count": "{n} 事件",
+    "pick_photo": "选择一张照片",
+    "kbd_help": "切换 · 帮助"
+  },
+  "Settings": {
+    "title": "Settings",
+    "subscription": "订阅",
+    "current_free": "当前 {plan} 计划 · {quota} 张/月",
+    "upgrade_pro": "升级 Pro · $19/月",
+    "upgrade_pro_plus": "升级 Pro+ · $49/月",
+    "api_tokens": "API Tokens",
+    "tokens_hint": "用于 Lightroom 插件 / 自动化脚本 / 自研工具。",
+    "create_token": "创建",
+    "token_one_time_warning": "⚠ 这是 token 唯一显示的机会。立即复制。",
+    "no_tokens": "尚无 token",
+    "piaa": "个人风格偏好(PIAA)",
+    "piaa_hint": "标注 50 张以上后,我们会为你训练专属美学评分模型。"
+  }
+}
