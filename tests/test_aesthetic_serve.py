@@ -68,8 +68,8 @@ class TestScoreImageDeterminism(unittest.TestCase):
                         self.assertGreaterEqual(v, 0); self.assertLessEqual(v, 10)
 
     def test_rejects_empty_request(self):
-        from fastapi import HTTPException
-        from serve import ScoreRequest, score_image
+        # 用 serve 自己暴露的 HTTPException(无 fastapi 时 serve 提供 stub)
+        from serve import HTTPException, ScoreRequest, score_image
 
         with self.assertRaises(HTTPException):
             score_image(ScoreRequest())

@@ -16,9 +16,27 @@ import os
 import time
 from typing import Awaitable, Callable
 
-from fastapi import Request
-from starlette.middleware.base import BaseHTTPMiddleware
-from starlette.responses import JSONResponse
+# fastapi / starlette 在无 deps CI 不可用 → 纯算法部分(path 归一化、token bucket)
+# 仍可单测;只有 dispatch 这层需要 starlette
+try:
+    from fastapi import Request
+    from starlette.middleware.base import BaseHTTPMiddleware
+    from starlette.responses import JSONResponse
+    HAS_STARLETTE = True
+except ImportError:
+    HAS_STARLETTE = False
+
+    class BaseHTTPMiddleware:  # type: ignore
+        def __init__(self, app): self.app = app
+
+        async def dispatch(self, request, call_next):
+            return await call_next(request)
+
+    class Request:  # type: ignore
+        pass
+
+    class JSONResponse:  # type: ignore
+        def __init__(self, *a, **kw): pass
 
 log = logging.getLogger("traillens.ratelimit")
 
