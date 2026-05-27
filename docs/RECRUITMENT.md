@@ -51,7 +51,7 @@ DM me "TrailLens". First 3.
 
 ```
 朋友们,做了个标注工具,想找 3 位风光摄影老炮一起把 1000 张照片打 8 维分。
-本地工具,30 秒/张,标完送 6 个月 Pro 会员。详情戳: traillens.app/recruit
+本地工具,30 秒/张,标完送 6 个月 Pro 会员。详情戳: traillens.zorotreeking.online/recruit
 私信【报名】。
 ```
 

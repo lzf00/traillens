@@ -31,7 +31,7 @@ export default async function HomePage() {
             {t("cta_demo")}
           </Link>
           <Link
-            href="https://github.com/your-handle/traillens"
+            href="https://github.com/lzf00/traillens"
             target="_blank"
             className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
                        transition-all hover:border-accent-glacier hover:text-accent-glacier"

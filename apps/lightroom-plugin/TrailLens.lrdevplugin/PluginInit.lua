@@ -4,5 +4,5 @@
 ]]
 
 local prefs = import "LrPrefs".prefsForPlugin()
-prefs.apiBase = prefs.apiBase or "https://api.traillens.app"
-prefs.webBase = prefs.webBase or "https://traillens.app"
+prefs.apiBase = prefs.apiBase or "https://api.traillens.zorotreeking.online"
+prefs.webBase = prefs.webBase or "https://traillens.zorotreeking.online"

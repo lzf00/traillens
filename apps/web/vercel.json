@@ -3,7 +3,7 @@
   "framework": "nextjs",
   "regions": ["hkg1", "sin1"],
   "env": {
-    "NEXT_PUBLIC_API_BASE": "https://api.traillens.app"
+    "NEXT_PUBLIC_API_BASE": "https://api.traillens.zorotreeking.online"
   },
   "headers": [
     {
@@ -24,6 +24,6 @@
   ],
   "redirects": [
     { "source": "/twitter", "destination": "https://x.com/intent/follow?screen_name=traillens", "permanent": false },
-    { "source": "/github", "destination": "https://github.com/your-handle/traillens", "permanent": false }
+    { "source": "/github", "destination": "https://github.com/lzf00/traillens", "permanent": false }
   ]
 }

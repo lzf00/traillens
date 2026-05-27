@@ -4,7 +4,7 @@
 
 | 域名 | 用途 | 估价(US$/年) | 必要性 |
 |---|---|---|---|
-| **traillens.app** | 主站(production) | ~14 | ★★★★★ |
+| **traillens.zorotreeking.online** | 主站(production) | ~14 | ★★★★★ |
 | **traillens.ai** | 备选 / 落地 | ~95 | ★★★ |
 | **traillens.dev** | 工程 / 文档子站(可后期) | ~14 | ★★ |
 | **traillens.com** | 强建议尽早抢(防被抢注) | ~12 | ★★★★ |
@@ -24,19 +24,19 @@
 ```bash
 # 1. CF 解析记录
 A      @         <your-fly.io-ip>
-CNAME  www       traillens.app
+CNAME  www       traillens.zorotreeking.online
 CNAME  api       <api.fly.io>
 CNAME  app       cname.vercel-dns.com.
 
 # 2. 邮箱(收 PH/HN 反馈)
 # CF 不提供邮件,推荐 Resend 或 Cloudflare Email Routing(免费):
-#   hello@traillens.app  →  你的 gmail
-#   feedback@traillens.app → 同上
-#   abuse@traillens.app → 同上(法律合规)
+#   hello@zorotreeking.online  →  你的 gmail
+#   feedback@traillens.zorotreeking.online → 同上
+#   abuse@traillens.zorotreeking.online → 同上(法律合规)
 
 # 3. 反向 DNS / TXT 记录(为 PH 验证用)
 TXT    @         google-site-verification=...
-TXT    _dmarc    v=DMARC1; p=quarantine; rua=mailto:hello@traillens.app
+TXT    _dmarc    v=DMARC1; p=quarantine; rua=mailto:hello@zorotreeking.online
 
 # 4. SSL/TLS 模式 → Full (strict)
 ```

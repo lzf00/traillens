@@ -155,7 +155,7 @@ export default async function SharePage({ params }: PageProps) {
       <footer className="mt-24 border-t border-divider pt-8 text-center">
         <p className="mono text-fg-tertiary">
           由{" "}
-          <a className="text-accent-aurora hover:underline" href="https://traillens.app">
+          <a className="text-accent-aurora hover:underline" href="https://traillens.zorotreeking.online">
             TrailLens
           </a>{" "}
           自动生成 · AI darkroom for landscape photographers

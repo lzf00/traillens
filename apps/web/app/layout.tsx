@@ -3,7 +3,7 @@ import type { Metadata } from "next";
 import { NextIntlClientProvider } from "next-intl";
 import { getLocale, getMessages } from "next-intl/server";
 
-const SITE = "https://traillens.app";
+const SITE = "https://traillens.zorotreeking.online";
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE),

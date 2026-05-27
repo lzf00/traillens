@@ -10,7 +10,7 @@ return {
   LrSdkMinimumVersion = 6.0,
   LrToolkitIdentifier = "app.traillens.lightroom",
   LrPluginName = "TrailLens",
-  LrPluginInfoUrl = "https://traillens.app",
+  LrPluginInfoUrl = "https://traillens.zorotreeking.online",
 
   -- 出现在 File → Plug-in Extras 菜单
   LrExportMenuItems = {

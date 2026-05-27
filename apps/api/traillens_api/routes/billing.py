@@ -32,7 +32,7 @@ def create_checkout(
     if not price_id:
         raise HTTPException(503, "stripe_not_configured")
 
-    site = os.environ.get("PUBLIC_SITE_URL", "https://traillens.app")
+    site = os.environ.get("PUBLIC_SITE_URL", "https://traillens.zorotreeking.online")
     try:
         url = billing.create_checkout_session(
             user_id=user.id, user_email=user.email,

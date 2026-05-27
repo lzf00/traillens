@@ -3,7 +3,7 @@
 > 5 分钟跑通骨架(无 GPU、无 API key、无装包)。
 
 ```bash
-git clone https://github.com/your-handle/traillens
+git clone https://github.com/lzf00/traillens
 cd traillens
 make verify       # 78 个测试 + agent demo + 美学评估自检
 ```
@@ -31,4 +31,4 @@ xargs -I {} curl -N -X POST http://localhost:8000/v1/trails/{}/run
 - 起 docker-compose(`make dev`)
 - 真训练:见 [美学模型](/aesthetic-model)
 
-完整部署见 [DEPLOY.md](https://github.com/your-handle/traillens/blob/main/docs/DEPLOY.md)。
+完整部署见 [DEPLOY.md](https://github.com/lzf00/traillens/blob/main/docs/DEPLOY.md)。

@@ -14,7 +14,7 @@
 |---|---|---|
 | 品牌全称 | TrailLens | landing / 演示 / 文章正文 |
 | 小写技术名 | traillens | 包名 / npm / pypi / GitHub repo |
-| URL / 邮件 | traillens.app / hello@traillens.app | 域名 |
+| URL / 邮件 | traillens.zorotreeking.online / hello@zorotreeking.online | 域名 |
 | MCP server | traillens-{exif,sunmoon,weather,...} | 标识 family |
 | 模型权重 | qalign-landscape-lora-{version} | HF model id |
 

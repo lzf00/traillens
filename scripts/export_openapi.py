@@ -3,7 +3,7 @@
 用途:
   - CI 当 artifact 发布(给前端 / 第三方 SDK 生成)
   - openapi-typescript 自动生成 TS client(取代手写 fetch)
-  - 公开到 docs.traillens.app/api(类似 stripe.com/docs/api)
+  - 公开到 docs.traillens.zorotreeking.online/api(类似 stripe.com/docs/api)
 
 用法:
     python scripts/export_openapi.py --out apps/web/lib/api/openapi.json

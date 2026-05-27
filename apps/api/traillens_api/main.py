@@ -36,9 +36,9 @@ app = FastAPI(
         "- `text/event-stream` 端点用 W3C SSE,每条消息 `event: <name>\\ndata: <json>\\n\\n`\n"
         "- 认证:`Authorization: Bearer <token>` 或 cookie `better-auth.session`\n"
         "- 配额超限:HTTP 429 + `{detail: {error, remaining, requested, upgrade_url}}`\n\n"
-        "更多见 [docs/ARCHITECTURE.md](https://github.com/your-handle/traillens/blob/main/docs/ARCHITECTURE.md#42-数据契约)。"
+        "更多见 [docs/ARCHITECTURE.md](https://github.com/lzf00/traillens/blob/main/docs/ARCHITECTURE.md#42-数据契约)。"
     ),
-    contact={"name": "TrailLens", "url": "https://traillens.app", "email": "hello@traillens.app"},
+    contact={"name": "TrailLens", "url": "https://traillens.zorotreeking.online", "email": "hello@zorotreeking.online"},
     license_info={"name": "MIT", "url": "https://opensource.org/licenses/MIT"},
     openapi_tags=[
         {"name": "health", "description": "存活探针 / 就绪检查。"},
@@ -49,7 +49,7 @@ app = FastAPI(
         {"name": "billing", "description": "Stripe checkout + webhook。"},
     ],
     servers=[
-        {"url": "https://api.traillens.app", "description": "production"},
+        {"url": "https://api.traillens.zorotreeking.online", "description": "production"},
         {"url": "http://localhost:8000", "description": "local dev"},
     ],
 )

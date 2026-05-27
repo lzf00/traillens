@@ -97,7 +97,7 @@ python train_qalign_lora.py train --piaa-user alice  # H3
 
 ## 6. 你能帮我什么
 
-- ⭐ Star [github.com/your-handle/traillens](https://github.com/your-handle/traillens)
+- ⭐ Star [github.com/lzf00/traillens](https://github.com/lzf00/traillens)
 - 📸 报名标注(私信我 "TrailLens")
 - 🐛 PR / issue / 数据质疑 都欢迎
 - 💬 在评论区分享你心目中"被低估"的风光作品

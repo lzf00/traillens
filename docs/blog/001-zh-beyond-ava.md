@@ -62,7 +62,7 @@ target: 2000-3000 字
 
 **H3** — 让单用户标 50 张照片做个人 PIAA(Personalized Image Aesthetics Assessment)LoRA,该用户的个人测试集 PLCC 会比全局模型再高 > 10%。
 
-代码在 [`packages/aesthetic/train_qalign_lora.py`](https://github.com/your-handle/traillens/blob/main/packages/aesthetic/train_qalign_lora.py),三个假设由 CLI flag 切换:
+代码在 [`packages/aesthetic/train_qalign_lora.py`](https://github.com/lzf00/traillens/blob/main/packages/aesthetic/train_qalign_lora.py),三个假设由 CLI flag 切换:
 
 ```bash
 python train_qalign_lora.py train                # H1 baseline
@@ -75,7 +75,7 @@ python train_qalign_lora.py train --piaa-user alice  # H3
 是的,只能自己标。但我让 GPT-5V(或 Claude Opus 4.7,谁便宜用谁)先预打分,
 我只需要在每张照片上做"校准",平均每张 30 秒。
 
-工具我开源在 [`packages/annotation/`](https://github.com/your-handle/traillens/tree/main/packages/annotation),
+工具我开源在 [`packages/annotation/`](https://github.com/lzf00/traillens/tree/main/packages/annotation),
 是个用 Python 标准库写的 80 行 HTTP server + 单文件 HTML 界面,
 完全本地运行,不上传任何数据:
 
@@ -111,7 +111,7 @@ python train_qalign_lora.py train --piaa-user alice  # H3
 
 这是个 build-in-public 项目,完全开放:
 
-- ⭐ Star [github.com/your-handle/traillens](https://github.com/your-handle/traillens)
+- ⭐ Star [github.com/lzf00/traillens](https://github.com/lzf00/traillens)
 - 📸 报名一起标注(私信我"TrailLens")
 - 🐛 数据 / 算法 / 工程任何 PR / issue 都欢迎
 - 💬 在评论区分享你心目中"被低估"的风光作品 —— 我会都用模型跑一遍,

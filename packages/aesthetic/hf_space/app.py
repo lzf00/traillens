@@ -95,7 +95,7 @@ with gr.Blocks(theme=gr.themes.Soft(primary_hue="emerald"), title="TrailLens —
 - **本模型带有训练数据的风格偏好**,定位为"个人风格助理",而非客观评分
 - 偏向传统风光美学(Outdoor Photographer / National Geographic 风),
   对实验性 / 后现代 / AI-generated 风格判断会失准
-- 想要个性化(PIAA)?用完整版 [traillens.app](https://traillens.app)
+- 想要个性化(PIAA)?用完整版 [traillens.zorotreeking.online](https://traillens.zorotreeking.online)
 """)
 
 

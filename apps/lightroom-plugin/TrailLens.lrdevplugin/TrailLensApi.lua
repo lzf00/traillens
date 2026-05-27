@@ -16,7 +16,7 @@ local prefs = import "LrPrefs".prefsForPlugin()
 local M = {}
 
 local function baseUrl()
-  return prefs.apiBase or "https://api.traillens.app"
+  return prefs.apiBase or "https://api.traillens.zorotreeking.online"
 end
 
 local function authHeaders()

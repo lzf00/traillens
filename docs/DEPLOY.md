@@ -20,7 +20,7 @@ npx vercel link
 
 # 2) 设环境变量(在 Vercel 网页或 CLI)
 npx vercel env add NEXT_PUBLIC_API_BASE production
-# → 输入: https://api.traillens.app
+# → 输入: https://api.traillens.zorotreeking.online
 npx vercel env add NEXT_PUBLIC_POSTHOG_KEY production
 npx vercel env add BETTER_AUTH_SECRET production
 npx vercel env add DATABASE_URL production
@@ -29,7 +29,7 @@ npx vercel env add DATABASE_URL production
 npx vercel --prod
 ```
 
-绑定域名:Vercel → Project → Domains → 加 `traillens.app`(按提示在 Cloudflare 设 CNAME)。
+绑定域名:Vercel → Project → Domains → 加 `traillens.zorotreeking.online`(按提示在 Cloudflare 设 CNAME)。
 
 ---
 
@@ -75,7 +75,7 @@ fly secrets set \
 fly deploy --config apps/api/fly.toml --dockerfile apps/api/Dockerfile
 
 # 6) 自定义域名
-fly certs add api.traillens.app
+fly certs add api.traillens.zorotreeking.online
 # → 按提示在 Cloudflare 加 CNAME api → traillens-api.fly.dev
 ```
 
@@ -113,7 +113,7 @@ modal volume put traillens-data ./photos /images
 
 # 3) 部署推理 endpoint(serve.py)
 modal deploy packages/aesthetic/serve.py
-# → 拿到 https://your-handle--traillens-aesthetic-fastapi-app.modal.run
+# → 拿到 https://lzf00--traillens-aesthetic-fastapi-app.modal.run
 
 # 4) 把 endpoint 写回 Fly secret
 fly secrets set TRAILLENS_AESTHETIC_ENDPOINT=https://...modal.run --app traillens-api
@@ -130,10 +130,10 @@ modal run packages/aesthetic/train_modal.py::run --use-exif true --run-name v0
 最终拓扑:
 
 ```
-traillens.app          → Vercel(web)
-api.traillens.app      → Fly.io
-photos.traillens.app   → Cloudflare R2 自定义域(public read)
-docs.traillens.app     → Vercel(同一项目的 /docs 子路径,或独立 Mintlify)
+traillens.zorotreeking.online          → Vercel(web)
+api.traillens.zorotreeking.online      → Fly.io
+photos.traillens.zorotreeking.online   → Cloudflare R2 自定义域(public read)
+docs.traillens.zorotreeking.online     → Vercel(同一项目的 /docs 子路径,或独立 Mintlify)
 ```
 
 DNS 记录(全部 Proxied):
@@ -143,7 +143,7 @@ CNAME  www     cname.vercel-dns.com.    Vercel
 CNAME  api     traillens-api.fly.dev.   Fly
 CNAME  photos  <r2-public-bucket-url>   R2
 TXT    @       google-site-verification=...
-TXT    _dmarc  v=DMARC1; p=quarantine; rua=mailto:hello@traillens.app
+TXT    _dmarc  v=DMARC1; p=quarantine; rua=mailto:hello@zorotreeking.online
 ```
 
 ---

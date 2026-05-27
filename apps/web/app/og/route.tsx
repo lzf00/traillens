@@ -39,7 +39,7 @@ export async function GET(req: NextRequest) {
   const kind = searchParams.get("kind") ?? "default";
   const title =
     searchParams.get("title") ?? "The AI darkroom for landscape photographers who hike.";
-  const subtitle = searchParams.get("subtitle") ?? "traillens.app";
+  const subtitle = searchParams.get("subtitle") ?? "traillens.zorotreeking.online";
   const kept = searchParams.get("kept");
 
   return new ImageResponse(

@@ -14,7 +14,7 @@ git remote add origin git@github.com:<你的-org>/traillens.git
 git push -u origin main
 
 # 3. 配置 repo 设置(在 GitHub 网页上):
-#    - About → website: https://traillens.app
+#    - About → website: https://traillens.zorotreeking.online
 #    - Topics: ai-agent, mcp, langgraph, photography, mllm, q-align
 #    - Branch protection: main 必须 PR + CI 通过
 ```

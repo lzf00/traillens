@@ -2,9 +2,9 @@ import type { DocsThemeConfig } from "nextra-theme-docs";
 
 const config: DocsThemeConfig = {
   logo: <strong>TrailLens · Docs</strong>,
-  project: { link: "https://github.com/your-handle/traillens" },
+  project: { link: "https://github.com/lzf00/traillens" },
   chat: { link: "https://discord.gg/your-discord" },
-  docsRepositoryBase: "https://github.com/your-handle/traillens/tree/main/apps/docs",
+  docsRepositoryBase: "https://github.com/lzf00/traillens/tree/main/apps/docs",
   footer: {
     content: (
       <span>
@@ -20,7 +20,7 @@ const config: DocsThemeConfig = {
   head: (
     <>
       <link rel="icon" href="/favicon.ico" />
-      <meta property="og:image" content="https://traillens.app/og?kind=docs&title=Docs" />
+      <meta property="og:image" content="https://traillens.zorotreeking.online/og?kind=docs&title=Docs" />
     </>
   ),
 };

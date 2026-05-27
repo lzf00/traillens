@@ -53,8 +53,8 @@ with text:
   Subtext (Inter, 20pt, #9AA4B2):
     "Multi-agent photo culling, critique, and trip planning."
   Bottom-left tag (Inter mono, 14pt, #6FBF8B):
-    "traillens.app"
-Single accent: a small aurora-green dot before "traillens.app".
+    "traillens.zorotreeking.online"
+Single accent: a small aurora-green dot before "traillens.zorotreeking.online".
 No icons, no UI mockups, no rainbow, no AI glow.
 ```
 
@@ -79,7 +79,7 @@ Inspired by Caspar David Friedrich + James Turrell color palette.
 2. SSE 流过来,分数滚动跳出
 3. 鼠标点一张照片 → 雷达图淡入 + decision timeline 展开
 4. 切换游记 tab → markdown 流式生成
-5. 最后 1 秒:logo + "traillens.app"
+5. 最后 1 秒:logo + "traillens.zorotreeking.online"
 
 工具:CleanShot X / LICEcap / Kap。
 压缩:gifsicle -O3 --colors 64 → < 2MB。

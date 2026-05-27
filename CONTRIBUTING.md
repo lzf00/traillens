@@ -1,12 +1,12 @@
 # 贡献 TrailLens
 
 > 5 分钟规则:从 clone 到 `make verify` 全绿,应该 < 5 分钟。
-> 如果你跑超了,**这就是个 issue** — 麻烦在 [`#dev-experience`](https://github.com/your-handle/traillens/labels/dev-experience) 报告。
+> 如果你跑超了,**这就是个 issue** — 麻烦在 [`#dev-experience`](https://github.com/lzf00/traillens/labels/dev-experience) 报告。
 
 ## 0. 5 分钟 onboarding
 
 ```bash
-git clone https://github.com/your-handle/traillens
+git clone https://github.com/lzf00/traillens
 cd traillens
 make verify       # ← 全套测试 + demo + 美学评估自检
 ```
@@ -17,9 +17,9 @@ make verify       # ← 全套测试 + demo + 美学评估自检
 
 最好上手的:
 
-- 🌱 [`good first issue`](https://github.com/your-handle/traillens/labels/good%20first%20issue) — 改 docs / 加 test / 修小 bug
-- 📷 [`bias-audit`](https://github.com/your-handle/traillens/labels/bias-audit) — 找模型评错的照片(连用户都能贡献)
-- 🛠️ [`mcp`](https://github.com/your-handle/traillens/labels/mcp) — 写新 MCP server(参考 traillens-exif 的 layout)
+- 🌱 [`good first issue`](https://github.com/lzf00/traillens/labels/good%20first%20issue) — 改 docs / 加 test / 修小 bug
+- 📷 [`bias-audit`](https://github.com/lzf00/traillens/labels/bias-audit) — 找模型评错的照片(连用户都能贡献)
+- 🛠️ [`mcp`](https://github.com/lzf00/traillens/labels/mcp) — 写新 MCP server(参考 traillens-exif 的 layout)
 
 ## 2. 分支 + commit 规范
 
@@ -70,7 +70,7 @@ Closes #142
 - **真诚优于客气**:有意见直接说;不要 "lgtm + 私下 dm 不同意"
 - **代码不属于个人**:任何人都可以改任何文件
 - **修改 RESEARCH/EVAL 前先 issue**:这两份文件影响外部信任,改动需要讨论
-- **不容忍人身攻击**;有问题联系 hello@traillens.app
+- **不容忍人身攻击**;有问题联系 hello@zorotreeking.online
 
 ## 7. 翻译 / 国际化
 
@@ -83,7 +83,7 @@ Closes #142
 
 风光照片样本是项目核心:
 - 走 [data_concern issue 模板](.github/ISSUE_TEMPLATE/data_concern.yml) 提报模型错判的例子
-- 想批量贡献标注?读 [docs/RECRUITMENT.md](docs/RECRUITMENT.md),邮件 hello@traillens.app
+- 想批量贡献标注?读 [docs/RECRUITMENT.md](docs/RECRUITMENT.md),邮件 hello@zorotreeking.online
 
 ## 9. 如何被致谢
 

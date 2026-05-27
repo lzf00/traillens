@@ -82,13 +82,13 @@ jobs:
     steps:
       - name: API healthz
         run: |
-          curl -fsS --max-time 10 https://api.traillens.app/healthz \
+          curl -fsS --max-time 10 https://api.traillens.zorotreeking.online/healthz \
             | grep -q '"status":"ok"' || (echo "API unhealthy!" && exit 1)
       - name: Web 200
         run: |
-          curl -fsS --max-time 10 https://traillens.app/ > /dev/null \
+          curl -fsS --max-time 10 https://traillens.zorotreeking.online/ > /dev/null \
             || (echo "Web down!" && exit 1)
       - name: OG card 200
         run: |
-          curl -fsS --max-time 10 "https://traillens.app/og?title=smoke" > /dev/null \
+          curl -fsS --max-time 10 "https://traillens.zorotreeking.online/og?title=smoke" > /dev/null \
             || (echo "OG broken!" && exit 1)

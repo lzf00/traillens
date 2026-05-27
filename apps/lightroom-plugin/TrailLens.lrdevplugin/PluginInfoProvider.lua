@@ -20,7 +20,7 @@ return {
         },
         f:row {
           f:static_text {
-            title = "从 traillens.app/app/settings 复制 token",
+            title = "从 traillens.zorotreeking.online/app/settings 复制 token",
             text_color = import "LrColor"(0.5, 0.5, 0.5),
           },
         },
