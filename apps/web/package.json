@@ -26,7 +26,7 @@
     "ai": "^3.4.0",
     "next-intl": "^3.20.0",
     "posthog-js": "^1.150.0",
-    "@sentry/nextjs": "^8.30.0",
+    "@sentry/nextjs": "^10.54.0",
     "openapi-fetch": "^0.13.0"
   },
   "devDependencies": {
