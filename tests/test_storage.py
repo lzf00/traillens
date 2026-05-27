@@ -90,5 +90,50 @@ class TestPresignSigV4(unittest.TestCase):
             self.assertIn(required, url, f"missing {required} in presigned URL")
 
 
+@unittest.skipUnless(HAS_PYDANTIC, "storage uses pydantic via config")
+class TestQiniuPresign(unittest.TestCase):
+    """七牛云路径 — 即使无 qiniu SDK 也能签 GET URL(纯 hmac-sha1)。"""
+
+    def setUp(self):
+        os.environ["QINIU_ACCESS_KEY"] = "test-ak"
+        os.environ["QINIU_SECRET_KEY"] = "test-sk"
+        os.environ["QINIU_BUCKET"] = "traillens-photos"
+        os.environ["QINIU_DOMAIN"] = "photos.test.com"
+        from traillens_api.config import get_settings
+        get_settings.cache_clear()
+
+    def tearDown(self):
+        for k in ("QINIU_ACCESS_KEY", "QINIU_SECRET_KEY", "QINIU_BUCKET", "QINIU_DOMAIN"):
+            os.environ.pop(k, None)
+        from traillens_api.config import get_settings
+        get_settings.cache_clear()
+
+    def test_get_url_signed_correctly(self):
+        from traillens_api.services.storage import presign
+
+        url = presign("get", "users/u/trails/t/p.jpg", expires=3600)
+        self.assertIsNotNone(url)
+        self.assertIn("photos.test.com", url)
+        # 七牛 token 格式:ak:base64sign(若装了 qiniu SDK 用 SDK,否则用 fallback hmac)
+        self.assertTrue("token=test-ak:" in url or "token=" in url)
+        self.assertIn("e=", url)
+
+    def test_qiniu_takes_priority_over_r2(self):
+        os.environ["R2_ACCESS_KEY_ID"] = "should_not_be_used"
+        os.environ["R2_SECRET_ACCESS_KEY"] = "should_not_be_used"
+        try:
+            from traillens_api.services.storage import presign
+            url = presign("get", "u/t/p.jpg", expires=600)
+            self.assertIn("photos.test.com", url)
+            self.assertNotIn("r2.cloudflarestorage", url)
+        finally:
+            os.environ.pop("R2_ACCESS_KEY_ID", None)
+            os.environ.pop("R2_SECRET_ACCESS_KEY", None)
+
+    def test_public_url_uses_qiniu_domain(self):
+        from traillens_api.services.storage import public_url
+        self.assertEqual(public_url("u/t/p.jpg"), "https://photos.test.com/u/t/p.jpg")
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

@@ -106,7 +106,7 @@ def critic_node(state: GraphState) -> dict:
                         f"原创={a.originality} 主题={a.theme} 情感={a.emotion} 格式塔={a.gestalt}。"
                         f"请给一段简短点评 + 一条下次改进建议。"},
                 ],
-                max_tokens=200,
+                max_tokens=1024,   # 豆包 thinking 模型 reasoning 占大半,要给足
                 temperature=0.6,
             )
             p.critique = llm_out or (

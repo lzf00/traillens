@@ -33,7 +33,7 @@ def chat(
     image_url: str | None = None,
     text: str | None = None,
     purpose: str = "critic",
-    max_tokens: int = 512,
+    max_tokens: int = 1024,   # 豆包 thinking 模型 reasoning 占一半,默认要大
     temperature: float = 0.7,
 ) -> str:
     """统一聊天入口。

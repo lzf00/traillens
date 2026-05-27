@@ -52,14 +52,58 @@ def presign(
     expires: int = 3600,
     content_type: str | None = None,
 ) -> str | None:
+    # 优先级:七牛云(国内) > R2/OSS/COS(S3 兼容) > None
+    if os.environ.get("QINIU_ACCESS_KEY") and os.environ.get("QINIU_SECRET_KEY"):
+        return _presign_qiniu(op, key, expires=expires)
+
     cfg = _config()
     if not (cfg["access_key"] and cfg["secret_key"]):
-        return None  # 未配置 R2 → 返回 None,routes 走 stub 响应
+        return None  # 未配置 → 返回 None,routes 走 stub 响应
 
     try:
         return _presign_boto3(op, key, cfg, expires=expires, content_type=content_type)
     except ImportError:
         return _presign_sigv4(op, key, cfg, expires=expires, content_type=content_type)
+
+
+# --------------------------------------------------------------------------- #
+# 七牛云 Kodo
+# --------------------------------------------------------------------------- #
+def _presign_qiniu(op: str, key: str, *, expires: int) -> str | None:
+    """七牛云对象存储 — PUT 返回上传 token+URL,GET 返回签名下载 URL。"""
+    ak = os.environ.get("QINIU_ACCESS_KEY", "")
+    sk = os.environ.get("QINIU_SECRET_KEY", "")
+    bucket = os.environ.get("QINIU_BUCKET", "")
+    domain = os.environ.get("QINIU_DOMAIN", "")  # bucket 绑定的 CDN/源站域名
+
+    try:
+        from qiniu import Auth  # type: ignore
+    except ImportError:
+        return _presign_qiniu_fallback(op, key, ak, sk, domain, expires)
+
+    q = Auth(ak, sk)
+    if op == "put":
+        # 七牛上传协议:客户端拿 token POST 到 up-z*.qiniup.com
+        # 返回带 token 的占位 URL,前端 SDK 用 token 走 multipart POST
+        token = q.upload_token(bucket, key=key, expires=expires)
+        return f"https://up-z0.qiniup.com?token={token}&key={key}"
+    # GET:私有空间签名 URL
+    if not domain:
+        return None
+    base_url = f"https://{domain}/{key}"
+    return q.private_download_url(base_url, expires=expires)
+
+
+def _presign_qiniu_fallback(op, key, ak, sk, domain, expires):
+    """无 qiniu SDK 时手撸下载签名 — 上传留给 SDK。"""
+    if op != "get" or not domain:
+        return None
+    import base64, hashlib, hmac, time
+    deadline = int(time.time()) + expires
+    base = f"https://{domain}/{key}?e={deadline}"
+    sign = hmac.new(sk.encode(), base.encode(), hashlib.sha1).digest()
+    encoded = base64.urlsafe_b64encode(sign).decode()
+    return f"{base}&token={ak}:{encoded}"
 
 
 def _presign_boto3(op, key, cfg, *, expires, content_type):
@@ -126,6 +170,16 @@ def _presign_sigv4(op, key, cfg, *, expires, content_type):
 
 
 def public_url(key: str) -> str | None:
+    # 优先 七牛 / OSS CDN 域名
+    qiniu_domain = os.environ.get("QINIU_DOMAIN")
+    if qiniu_domain:
+        # 容错:接受 "host" 或 "https://host" 两种写法
+        d = qiniu_domain
+        for prefix in ("https://", "http://"):
+            if d.startswith(prefix):
+                d = d[len(prefix):]
+                break
+        return f"https://{d.rstrip('/')}/{key}"
     cfg = _config()
     if not cfg["public_base"]:
         return None

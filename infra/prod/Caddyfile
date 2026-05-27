@@ -1,0 +1,58 @@
+# Caddy 反向代理 — 自动签 Let's Encrypt HTTPS 证书。
+# 修改后:docker compose restart caddy
+
+# ---- API 后端 ----
+api.traillens.zorotreeking.online {
+    # CORS:允许前端域跨域调
+    @cors_preflight method OPTIONS
+    handle @cors_preflight {
+        header Access-Control-Allow-Origin "https://traillens.zorotreeking.online"
+        header Access-Control-Allow-Methods "GET,POST,PUT,DELETE,PATCH,OPTIONS"
+        header Access-Control-Allow-Headers "Content-Type,Authorization,X-Dev-User-Id"
+        header Access-Control-Max-Age "86400"
+        respond "" 204
+    }
+
+    # SSE 端点不能 buffer
+    @sse path /v1/trails/*/run
+    handle @sse {
+        reverse_proxy api:8000 {
+            flush_interval -1
+            transport http {
+                read_timeout 600s
+            }
+        }
+    }
+
+    # 其余路径正常反代
+    reverse_proxy api:8000
+
+    # 日志
+    log {
+        output file /data/logs/api.access.log
+        format json
+    }
+
+    # 安全 header
+    header {
+        Strict-Transport-Security "max-age=31536000; includeSubDomains"
+        X-Content-Type-Options "nosniff"
+        Referrer-Policy "strict-origin-when-cross-origin"
+        # 删 Server: 暴露
+        -Server
+    }
+}
+
+# ---- LLM 观测后台(可选) ----
+obs.traillens.zorotreeking.online {
+    reverse_proxy langfuse:3000
+    # 简单 IP 限制(只让你自己 / 公司 IP 访问)
+    # @authorized remote_ip 你的固定IP/32
+    # handle_path /* @authorized { reverse_proxy langfuse:3000 }
+    # respond "Forbidden" 403
+}
+
+# ---- Web 前端(如果也部署在这台机器,默认推 EdgeOne) ----
+# traillens.zorotreeking.online {
+#     reverse_proxy web:3000
+# }

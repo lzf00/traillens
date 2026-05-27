@@ -1,0 +1,109 @@
+# 生产 docker-compose — 一台腾讯云 CVM 跑全部依赖。
+# 起步推荐配置:2c4g + 50G 系统盘。
+#
+# 用法:
+#   1) 把整个 TrailLens 仓库 git clone 到服务器
+#   2) 在仓库根复制 .env.example → .env 填值
+#   3) cd infra/prod && docker compose -f docker-compose.prod.yml up -d
+#   4) Caddy 自动签 HTTPS 证书,5 分钟生效
+
+version: "3.9"
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: traillens-pg
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-traillens}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?需要在 .env 设密码}
+      POSTGRES_DB: ${POSTGRES_DB:-traillens}
+    volumes:
+      - traillens_pg_data:/var/lib/postgresql/data
+      - ../../infra/postgres/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-traillens}"]
+      interval: 10s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: traillens-redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
+    volumes:
+      - traillens_redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+
+  api:
+    build:
+      context: ../../
+      dockerfile: apps/api/Dockerfile
+    container_name: traillens-api
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    environment:
+      # 用 docker network 内的 hostname,不走公网
+      DATABASE_URL: postgres://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}
+      REDIS_URL: redis://redis:6379/0
+      TRAILLENS_ENV: prod
+      PORT: 8000
+      # 从主机 .env 继承(不内置 secret)
+      ARK_API_KEY: ${ARK_API_KEY}
+      DOUBAO_MODEL_VISION: ${DOUBAO_MODEL_VISION:-doubao-seed-2-0-pro-260215}
+      DOUBAO_MODEL_TEXT: ${DOUBAO_MODEL_TEXT:-doubao-seed-1-6-thinking-250715}
+      # 七牛云对象存储
+      QINIU_ACCESS_KEY: ${QINIU_ACCESS_KEY}
+      QINIU_SECRET_KEY: ${QINIU_SECRET_KEY}
+      QINIU_BUCKET: ${QINIU_BUCKET:-traillens-photos}
+      QINIU_DOMAIN: ${QINIU_DOMAIN}
+      # 监控(可选)
+      SENTRY_DSN: ${SENTRY_DSN:-}
+      LANGFUSE_HOST: ${LANGFUSE_HOST:-}
+      LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
+      LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
+    expose:
+      - "8000"   # 仅 docker network 内可见,外部通过 caddy 反代
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: traillens-caddy
+    restart: unless-stopped
+    depends_on:
+      - api
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - traillens_caddy_data:/data         # 自动签证书存这里
+      - traillens_caddy_config:/config
+
+  # 可选:LLM 调用观测(每月豆包账单时打开它)
+  # docker compose --profile observability -f docker-compose.prod.yml up -d
+  langfuse:
+    image: langfuse/langfuse:latest
+    container_name: traillens-langfuse
+    restart: unless-stopped
+    profiles: ["observability"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}_langfuse
+      NEXTAUTH_URL: https://obs.traillens.zorotreeking.online
+      NEXTAUTH_SECRET: ${LANGFUSE_SECRET:?need LANGFUSE_SECRET}
+      SALT: ${LANGFUSE_SALT:?need LANGFUSE_SALT}
+    expose:
+      - "3000"
+
+volumes:
+  traillens_pg_data:
+  traillens_redis_data:
+  traillens_caddy_data:
+  traillens_caddy_config:
