@@ -83,21 +83,33 @@ def culling_node(state: GraphState) -> dict:
 # Critic:对保留的照片生成自然语言点评
 # --------------------------------------------------------------------------- #
 def critic_node(state: GraphState) -> dict:
+    from ..tools.llm import chat as llm_chat
+
     photos = [p.model_copy(deep=True) for p in state.photos]
     for p in photos:
         if p.verdict == PhotoVerdict.KEEP and p.aesthetic is not None:
             a = p.aesthetic
-            # [REAL] 这里换成 Claude Agent SDK / Qwen3-VL 的多模态调用,
-            #        prompt 注入 8 维分数 + EXIF,产出 AesExpert 风格点评。
             weakest = min(
-                [
-                    ("构图", a.composition),
-                    ("技术执行", a.technical),
-                    ("情感", a.emotion),
-                ],
+                [("构图", a.composition), ("技术执行", a.technical), ("情感", a.emotion)],
                 key=lambda x: x[1],
             )
-            p.critique = (
+            # 接豆包 / DeepSeek;失败 / 离线 fallback 到规则文案
+            llm_out = llm_chat(
+                purpose="critic",
+                messages=[
+                    {"role": "system", "content":
+                        "你是一位资深风光摄影评审,语言克制有洞察。每次回复不超过 80 字。"},
+                    {"role": "user", "content":
+                        f"照片 EXIF: {p.exif.focal_length_mm}mm f/{p.exif.aperture_f} "
+                        f"ISO{p.exif.iso}。8 维评分: overall={a.overall} "
+                        f"构图={a.composition} 视觉={a.visual_elements} 技术={a.technical} "
+                        f"原创={a.originality} 主题={a.theme} 情感={a.emotion} 格式塔={a.gestalt}。"
+                        f"请给一段简短点评 + 一条下次改进建议。"},
+                ],
+                max_tokens=200,
+                temperature=0.6,
+            )
+            p.critique = llm_out or (
                 f"综合 {a.overall}/10。亮点在视觉元素({a.visual_elements})与"
                 f"格式塔({a.gestalt})。可提升:{weakest[0]}({weakest[1]})。"
                 f"建议下次在 {p.exif.focal_length_mm}mm 焦段尝试调整前景平衡。"
