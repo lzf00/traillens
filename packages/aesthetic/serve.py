@@ -23,8 +23,33 @@ from __future__ import annotations
 import os
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, Field
+# fastapi / pydantic 在无 deps 环境(CI contract-tests job)中不可用 → 优雅降级
+try:
+    from fastapi import FastAPI, HTTPException
+    HAS_FASTAPI = True
+except ImportError:
+    HAS_FASTAPI = False
+
+    class HTTPException(Exception):  # type: ignore  # 让 raise HTTPException 不崩
+        def __init__(self, status_code=500, detail=None):
+            self.status_code = status_code
+            self.detail = detail
+            super().__init__(detail)
+
+try:
+    from pydantic import BaseModel, Field
+except ImportError:
+    # 极简 stub:只支持本文件用到的字段定义,够单测拿字段名
+    class BaseModel:  # type: ignore
+        def __init__(self, **kw):
+            for k, v in kw.items():
+                setattr(self, k, v)
+
+        def model_dump(self):
+            return {k: getattr(self, k) for k in self.__class__.__annotations__}
+
+    def Field(default=None, **kw):  # type: ignore  # noqa: N802
+        return default
 
 # --------------------------------------------------------------------------- #
 # 1. 输入/输出 schema(与 AestheticScore 对齐)
@@ -101,19 +126,19 @@ def score_image(req: ScoreRequest) -> ScoreResponse:
 
 
 # --------------------------------------------------------------------------- #
-# 3. FastAPI app(Modal 与 本地 uvicorn 共用)
+# 3. FastAPI app(Modal 与 本地 uvicorn 共用) — 无 fastapi 时 web = None
 # --------------------------------------------------------------------------- #
-web = FastAPI(title="TrailLens Aesthetic API", version="0.0.1")
+web = FastAPI(title="TrailLens Aesthetic API", version="0.0.1") if HAS_FASTAPI else None
 
 
-@web.get("/healthz")
-def healthz() -> dict:
-    return {"status": "ok", "model_loaded": _MODEL is not None}
+if web is not None:
+    @web.get("/healthz")
+    def healthz() -> dict:
+        return {"status": "ok", "model_loaded": _MODEL is not None}
 
-
-@web.post("/score", response_model=ScoreResponse)
-def score(req: ScoreRequest) -> ScoreResponse:
-    return score_image(req)
+    @web.post("/score", response_model=ScoreResponse)
+    def score(req: ScoreRequest) -> ScoreResponse:
+        return score_image(req)
 
 
 # --------------------------------------------------------------------------- #

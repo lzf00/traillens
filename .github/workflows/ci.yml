@@ -57,7 +57,8 @@ jobs:
           node-version: "20"
           cache: npm
           cache-dependency-path: apps/web/package.json
-      - run: npm install --no-audit --no-fund
+      # --legacy-peer-deps:Next 15 + React 19 太新,部分 SDK peer dep 还没追上
+      - run: npm install --no-audit --no-fund --legacy-peer-deps
       - run: npm run typecheck
 
   # ---- 4. 文档与契约形态守护(catch 漂移) ----
