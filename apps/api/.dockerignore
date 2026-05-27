@@ -1,0 +1,25 @@
+# 远比 .gitignore 严格——任何不是运行时需要的都不放进镜像
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+**/.mypy_cache
+**/.ruff_cache
+**/.venv
+**/venv
+**/node_modules
+**/.next
+**/.turbo
+**/build
+**/dist
+**/*.egg-info
+**/.git
+**/.github
+**/docs
+**/tests
+**/scripts
+**/alembic/versions/*.py.bak
+**/data
+**/runs
+**/photos
+**/wandb
+**/.DS_Store

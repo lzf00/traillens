@@ -23,9 +23,16 @@ from traillens_agents.demo import run_fallback  # noqa: E402
 from traillens_agents.state.schema import GraphState, HikeContext, PhotoVerdict  # noqa: E402
 from traillens_agents.tools import clients  # noqa: E402
 
+from .observability import log_agent_event, trace_agent_run  # noqa: E402
+
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
+
+
+def _sse_and_log(run_id: str, event: str, data: dict) -> str:
+    log_agent_event(run_id, event, data)
+    return _sse(event, data)
 
 
 def _build_initial_state(trail_id: str, run_id: str) -> GraphState:
@@ -49,16 +56,18 @@ def _photo_event(p) -> dict:
 # --------------------------------------------------------------------------- #
 # 主入口:自动二选一
 # --------------------------------------------------------------------------- #
-async def run_trail_stream(trail_id: str, run_id: str) -> AsyncIterator[str]:
+async def run_trail_stream(trail_id: str, run_id: str, user_id: str = "anon") -> AsyncIterator[str]:
+    log_agent_event(run_id, "run.started", {"trail_id": trail_id})
     yield _sse("run.started", {"run_id": run_id, "trail_id": trail_id})
 
-    try:
-        async for chunk in _via_langgraph(trail_id, run_id):
-            yield chunk
-        return
-    except _LangGraphUnavailable:
-        async for chunk in _via_fallback(trail_id, run_id):
-            yield chunk
+    with trace_agent_run(run_id, trail_id, user_id):
+        try:
+            async for chunk in _via_langgraph(trail_id, run_id):
+                yield chunk
+            return
+        except _LangGraphUnavailable:
+            async for chunk in _via_fallback(trail_id, run_id):
+                yield chunk
 
 
 class _LangGraphUnavailable(Exception):

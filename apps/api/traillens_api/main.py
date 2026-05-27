@@ -18,7 +18,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .routes import health, trails
+from .routes import health, photos, trails
+from .services.observability import init_sentry
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
@@ -27,6 +28,7 @@ app = FastAPI(
     version=__version__,
     description="多智能体摄影助手 HTTP API。前端契约见 docs/ARCHITECTURE.md §4.2。",
 )
+init_sentry(app)  # 没 SENTRY_DSN 自动 no-op
 
 app.add_middleware(
     CORSMiddleware,
@@ -38,3 +40,4 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(trails.router, prefix="/v1/trails", tags=["trails"])
+app.include_router(photos.router, prefix="/v1/photos", tags=["photos"])

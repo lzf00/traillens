@@ -17,7 +17,9 @@ from ..schemas import (
     TrailCreate,
     TrailOut,
 )
-from ..services import store
+from fastapi.responses import RedirectResponse
+
+from ..services import storage, store
 from ..services.orchestrator import run_trail_stream
 
 router = APIRouter()
@@ -41,6 +43,41 @@ def get_trail(
     if not trail:
         raise HTTPException(404, "trail_not_found")
     return trail
+
+
+@router.post("/{trail_id}/photos:presign", status_code=200)
+def presign_uploads(
+    trail_id: str,
+    body: dict,
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """前端按"我准备上传 N 张照片"调一次,拿回 N 个 PUT URL → 并行直传 R2。
+
+    body = {"files": [{"filename": "a.jpg", "content_type": "image/jpeg"}, ...]}
+    """
+    trail = store.get_trail(trail_id, user_id=user.id)
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    files = body.get("files") or []
+    check_quota(user, requested=len(files))
+
+    out = []
+    for f in files:
+        ext = (f.get("filename", "")).rsplit(".", 1)[-1] if "." in f.get("filename", "") else "jpg"
+        photo_id = str(uuid.uuid4())
+        key = storage.make_object_key(
+            user_id=user.id, trail_id=trail_id, photo_id=photo_id, ext=ext,
+        )
+        url = storage.presign("put", key,
+                              expires=3600,
+                              content_type=f.get("content_type", "image/jpeg"))
+        out.append({
+            "photo_id": photo_id,
+            "key": key,
+            "put_url": url,        # None 时前端 fallback 走 :bulk + base64
+            "public_url": storage.public_url(key),
+        })
+    return {"uploads": out, "expires_in": 3600}
 
 
 @router.post("/{trail_id}/photos:bulk", status_code=202)
@@ -90,7 +127,7 @@ def run_trail(
         raise HTTPException(404, "trail_not_found")
     run_id = str(uuid.uuid4())
     return StreamingResponse(
-        run_trail_stream(trail_id, run_id),
+        run_trail_stream(trail_id, run_id, user_id=user.id),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
     )

@@ -80,6 +80,30 @@ class TestApiSmoke(unittest.TestCase):
         finally:
             os.environ.pop("DEV_USER_QUOTA", None)
 
+    def test_presign_returns_uploads_array(self):
+        r = self.client.post("/v1/trails", json={"name": "presign-test"})
+        tid = r.json()["id"]
+        r2 = self.client.post(
+            f"/v1/trails/{tid}/photos:presign",
+            json={"files": [
+                {"filename": "a.jpg", "content_type": "image/jpeg"},
+                {"filename": "b.RAW", "content_type": "image/x-raw"},
+            ]},
+        )
+        self.assertEqual(r2.status_code, 200)
+        data = r2.json()
+        self.assertEqual(len(data["uploads"]), 2)
+        for u in data["uploads"]:
+            self.assertIn("photo_id", u)
+            self.assertIn("key", u)
+            # put_url 在无 R2 凭证时为 None,这是合法的
+            self.assertIn("put_url", u)
+
+    def test_photo_download_without_storage_returns_503(self):
+        # 无 R2 配置 → download 应给 503 而不是崩
+        r = self.client.get("/v1/photos/some-photo-id/download", follow_redirects=False)
+        self.assertEqual(r.status_code, 503)
+
     def test_run_streams_sse_events(self):
         r = self.client.post("/v1/trails", json={"name": "stream-test"})
         tid = r.json()["id"]

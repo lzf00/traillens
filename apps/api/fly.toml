@@ -1,0 +1,59 @@
+# Fly.io 部署配置(api 服务)。
+# https://fly.io/docs/reference/configuration/
+#
+# 首次部署:
+#   cd apps/api
+#   fly launch --no-deploy        # 创建 app(选择 hkg 区域)
+#   fly postgres create -n traillens-pg -r hkg --vm-size shared-cpu-1x
+#   fly postgres attach traillens-pg
+#   fly redis create               # Upstash 集成
+#   fly secrets set ANTHROPIC_API_KEY=... QWEN_VL_API_KEY=... BETTER_AUTH_SECRET=...
+#   fly deploy
+
+app = "traillens-api"
+primary_region = "hkg"   # 香港,靠近主要用户群 + 靠近 CF R2
+
+[build]
+  dockerfile = "Dockerfile"
+  ignorefile = ".dockerignore"
+  # 从 monorepo 根构建,需要 packages/ 在 context 里
+  build_target = ""
+
+[deploy]
+  release_command = "alembic upgrade head"
+  strategy = "rolling"
+
+[env]
+  PORT = "8000"
+  TRAILLENS_ENV = "prod"
+  LOG_LEVEL = "info"
+  TRAILLENS_MCP_TRANSPORT = "inprocess"   # MCP 在同进程,SSE 长连不被 subprocess 抢资源
+
+[http_service]
+  internal_port = 8000
+  force_https = true
+  auto_stop_machines = "stop"          # 闲时停机,省钱;有请求时秒起
+  auto_start_machines = true
+  min_machines_running = 1             # 至少 1 个保持热,避免冷启动
+  processes = ["app"]
+
+  [http_service.concurrency]
+    type = "requests"
+    hard_limit = 200
+    soft_limit = 150                   # 防 SSE 长连把 socket 占满
+
+  [[http_service.checks]]
+    grace_period = "10s"
+    interval = "30s"
+    method = "get"
+    timeout = "5s"
+    path = "/healthz"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "512mb"
+  cpu_kind = "shared"
+  cpus = 1
+  # Sprint 5 末性能压测后调到 dedicated-cpu-1x / 1gb
+
+# Sprint 6 末:加 [[mounts]] 把 /tmp 挂到 volume,缓存 R2 下载的小文件
