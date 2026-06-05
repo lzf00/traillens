@@ -25,30 +25,30 @@ echo "✓ 环境检查通过"
 
 echo ""
 echo "════════ 1. 构建 API 镜像 ════════"
-docker compose -f infra/prod/docker-compose.prod.yml build api
+docker compose --env-file .env -f infra/prod/docker-compose.prod.yml build api
 
 echo ""
 echo "════════ 2. 启动核心服务 ════════"
-docker compose -f infra/prod/docker-compose.prod.yml up -d postgres redis
+docker compose --env-file .env -f infra/prod/docker-compose.prod.yml up -d postgres redis
 echo "等 postgres healthy..."
-until docker compose -f infra/prod/docker-compose.prod.yml ps postgres | grep -q "healthy"; do
+until docker compose --env-file .env -f infra/prod/docker-compose.prod.yml ps postgres | grep -q "healthy"; do
   sleep 2
 done
 
 echo ""
 echo "════════ 3. 跑 DB migration ════════"
-docker compose -f infra/prod/docker-compose.prod.yml run --rm \
+docker compose --env-file .env -f infra/prod/docker-compose.prod.yml run --rm \
   --workdir /app/api api alembic upgrade head || \
   echo "(migration 已是最新,或表已存在)"
 
 echo ""
 echo "════════ 4. 启动 API + Caddy ════════"
-docker compose -f infra/prod/docker-compose.prod.yml up -d api caddy
+docker compose --env-file .env -f infra/prod/docker-compose.prod.yml up -d api caddy
 
 echo ""
 echo "════════ 5. 等待 API healthy ════════"
 sleep 5
-until docker compose -f infra/prod/docker-compose.prod.yml exec -T api \
+until docker compose --env-file .env -f infra/prod/docker-compose.prod.yml exec -T api \
   python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz').read()" 2>/dev/null; do
   sleep 2
   echo "..."
@@ -58,8 +58,8 @@ echo "✓ API healthy"
 echo ""
 echo "════════ 完成 ════════"
 echo "  API:  https://api.traillens.zorotreeking.online/healthz"
-echo "  日志: docker compose -f infra/prod/docker-compose.prod.yml logs -f api"
-echo "  状态: docker compose -f infra/prod/docker-compose.prod.yml ps"
+echo "  日志: docker compose --env-file .env -f infra/prod/docker-compose.prod.yml logs -f api"
+echo "  状态: docker compose --env-file .env -f infra/prod/docker-compose.prod.yml ps"
 echo ""
 echo "下一步:"
 echo "  1) 在腾讯云域名解析里加 CNAME:"

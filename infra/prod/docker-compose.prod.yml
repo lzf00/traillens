@@ -107,8 +107,10 @@ services:
     environment:
       DATABASE_URL: postgres://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}_langfuse
       NEXTAUTH_URL: https://obs.traillens.zorotreeking.online
-      NEXTAUTH_SECRET: ${LANGFUSE_SECRET:?need LANGFUSE_SECRET}
-      SALT: ${LANGFUSE_SALT:?need LANGFUSE_SALT}
+      # 用 :- 给默认空值,只在启用 observability profile 时才需要真值
+      # 不然 docker compose 全局插值会强制要求(即使本服务不启动)
+      NEXTAUTH_SECRET: ${LANGFUSE_SECRET:-}
+      SALT: ${LANGFUSE_SALT:-}
     expose:
       - "3000"
 
