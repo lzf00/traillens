@@ -18,7 +18,8 @@ echo "════════ 0. 环境检查 ════════"
 command -v docker >/dev/null || { echo "✗ Docker 未装。运行:curl -fsSL https://get.docker.com | sh"; exit 1; }
 docker compose version >/dev/null 2>&1 || { echo "✗ docker compose v2 未装。Ubuntu: apt install docker-compose-plugin"; exit 1; }
 [ -f .env ] || { echo "✗ .env 不存在。cp .env.example .env 后填值"; exit 1; }
-grep -q "^ARK_API_KEY=." .env || { echo "✗ .env 缺 ARK_API_KEY"; exit 1; }
+# 接受 ARK_API_KEY 或 DOUBAO_API_KEY 任一(命名都支持)
+grep -qE "^(ARK_API_KEY|DOUBAO_API_KEY)=." .env || { echo "✗ .env 缺 ARK_API_KEY 或 DOUBAO_API_KEY"; exit 1; }
 grep -q "^POSTGRES_PASSWORD=." .env || { echo "✗ .env 缺 POSTGRES_PASSWORD"; exit 1; }
 echo "✓ 环境检查通过"
 
