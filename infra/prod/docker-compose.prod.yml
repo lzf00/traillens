@@ -54,9 +54,11 @@ services:
       TRAILLENS_ENV: prod
       PORT: 8000
       # 从主机 .env 继承(不内置 secret)
-      # llm.py 接受 ARK_API_KEY 或 DOUBAO_API_KEY 任一,优先 ARK_API_KEY
+      # llm.py 接受 ARK_* 或 DOUBAO_* 任一命名,优先 ARK_*
       ARK_API_KEY: ${ARK_API_KEY:-${DOUBAO_API_KEY:-}}
       DOUBAO_API_KEY: ${DOUBAO_API_KEY:-}
+      ARK_BASE_URL: ${ARK_BASE_URL:-${DOUBAO_BASE_URL:-https://ark.cn-beijing.volces.com/api/v3}}
+      DOUBAO_BASE_URL: ${DOUBAO_BASE_URL:-}
       DOUBAO_MODEL_VISION: ${DOUBAO_MODEL_VISION:-doubao-seed-2-0-pro-260215}
       DOUBAO_MODEL_TEXT: ${DOUBAO_MODEL_TEXT:-doubao-seed-1-6-thinking-250715}
       # 腾讯云 COS(国内默认)— 留空 → 走 S3 兼容路径

@@ -69,11 +69,16 @@ def _chat_doubao(messages, image_url, text, purpose, max_tokens, temperature):
       vision/critic → doubao-seed-2-0-pro-260215 (多模态强推理)
       story         → doubao-seed-1-6-thinking-250715 (纯文本长上下文)
     """
+    # 接受两套命名(ARK_* 是官方推荐,DOUBAO_* 是早期文档遗留)
     api_key = os.environ.get("ARK_API_KEY") or os.environ.get("DOUBAO_API_KEY")
     if not api_key:
         return None
 
-    base_url = os.environ.get("ARK_BASE_URL", "https://ark.cn-beijing.volces.com/api/v3")
+    base_url = (
+        os.environ.get("ARK_BASE_URL")
+        or os.environ.get("DOUBAO_BASE_URL")
+        or "https://ark.cn-beijing.volces.com/api/v3"
+    )
     model = _doubao_model(purpose)
     inputs = _build_doubao_input(messages, image_url, text)
 
