@@ -42,8 +42,8 @@ docker compose --env-file .env -f infra/prod/docker-compose.prod.yml run --rm \
   echo "(migration 已是最新,或表已存在)"
 
 echo ""
-echo "════════ 4. 启动 API + Caddy ════════"
-docker compose --env-file .env -f infra/prod/docker-compose.prod.yml up -d api caddy
+echo "════════ 4. 启动 API(host nginx 反代模式) ════════"
+docker compose --env-file .env -f infra/prod/docker-compose.prod.yml up -d api
 
 echo ""
 echo "════════ 5. 等待 API healthy ════════"
@@ -61,9 +61,9 @@ echo "  API:  https://api.traillens.zorotreeking.online/healthz"
 echo "  日志: docker compose --env-file .env -f infra/prod/docker-compose.prod.yml logs -f api"
 echo "  状态: docker compose --env-file .env -f infra/prod/docker-compose.prod.yml ps"
 echo ""
-echo "下一步:"
-echo "  1) 在腾讯云域名解析里加 CNAME:"
-echo "     主机记录 api.traillens   记录值 <这台 CVM 的公网 IP>"
-echo "  2) 等 DNS 生效(1-10 分钟)"
-echo "  3) 访问 https://api.traillens.zorotreeking.online/healthz"
-echo "     Caddy 会自动签 Let's Encrypt 证书,首次访问稍慢"
+echo "下一步(nginx 反代模式):"
+echo "  1) 配 nginx server block 反代到 127.0.0.1:8000"
+echo "     模板见 infra/prod/nginx-traillens-api.conf"
+echo "  2) 申请 api.traillens 子域 SSL 证书"
+echo "  3) systemctl reload nginx"
+echo "  4) 访问 https://api.traillens.zorotreeking.online/healthz"

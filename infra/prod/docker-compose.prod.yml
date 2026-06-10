@@ -77,13 +77,17 @@ services:
       LANGFUSE_HOST: ${LANGFUSE_HOST:-}
       LANGFUSE_PUBLIC_KEY: ${LANGFUSE_PUBLIC_KEY:-}
       LANGFUSE_SECRET_KEY: ${LANGFUSE_SECRET_KEY:-}
-    expose:
-      - "8000"   # 仅 docker network 内可见,外部通过 caddy 反代
+    # 监听本机 8000(仅 127.0.0.1 可见,公网摸不到),由 host 上的 nginx 反代加 SSL
+    # 这是 nginx 反代模式,不要 caddy。
+    # 如果有人想用纯 caddy 方案,docker compose --profile use-caddy up -d
+    ports:
+      - "127.0.0.1:8000:8000"
 
   caddy:
     image: caddy:2-alpine
     container_name: traillens-caddy
     restart: unless-stopped
+    profiles: ["use-caddy"]   # 默认不启动 — host 的 nginx 来反代
     depends_on:
       - api
     ports:
@@ -91,7 +95,7 @@ services:
       - "443:443"
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
-      - traillens_caddy_data:/data         # 自动签证书存这里
+      - traillens_caddy_data:/data
       - traillens_caddy_config:/config
 
   # 可选:LLM 调用观测(每月豆包账单时打开它)
