@@ -45,7 +45,9 @@ def upgrade() -> None:
             name            text NOT NULL,
             location_name   text,
             gpx_uri         text,
-            gps_bbox        geometry(POLYGON, 4326),
+            -- gps_bbox 用 jsonb 存 {lat_min,lat_max,lon_min,lon_max}
+            -- (MVP 不上 PostGIS;以后做空间检索时改 geometry+GIST)
+            gps_bbox        jsonb,
             state           jsonb NOT NULL DEFAULT '{}'::jsonb,
             travelogue_md   text,
             next_trip_plan  jsonb,
@@ -53,7 +55,6 @@ def upgrade() -> None:
             updated_at      timestamptz NOT NULL DEFAULT now()
         );
         CREATE INDEX IF NOT EXISTS idx_trails_user ON trails(user_id);
-        CREATE INDEX IF NOT EXISTS idx_trails_bbox ON trails USING GIST(gps_bbox);
         """
     )
 

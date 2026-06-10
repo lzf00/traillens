@@ -42,9 +42,12 @@ class TestInitialSchemaMigration(unittest.TestCase):
                 f"migration missing create for {tbl}",
             )
 
-    def test_uses_pgvector_and_postgis(self):
+    def test_uses_pgvector(self):
         self.assertIn("vector(768)", self.src, "photos.embedding must use pgvector")
-        self.assertIn("geometry(POLYGON, 4326)", self.src, "trails.gps_bbox must use PostGIS")
+
+    def test_gps_bbox_present(self):
+        # MVP: gps_bbox 用 jsonb;PostGIS 留给后续 sprint
+        self.assertIn("gps_bbox", self.src, "trails must have gps_bbox column")
 
     def test_downgrade_drops_in_reverse_order(self):
         # 反向 drop:子表先 drop,父表后 drop(避免 FK 残留)。
