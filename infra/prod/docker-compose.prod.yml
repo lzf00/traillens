@@ -49,7 +49,7 @@ services:
         condition: service_started
     environment:
       # 用 docker network 内的 hostname,不走公网
-      DATABASE_URL: postgresql://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}
       REDIS_URL: redis://redis:6379/0
       TRAILLENS_ENV: prod
       PORT: 8000
@@ -109,7 +109,7 @@ services:
       postgres:
         condition: service_healthy
     environment:
-      DATABASE_URL: postgresql://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}_langfuse
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}_langfuse
       NEXTAUTH_URL: https://obs.traillens.zorotreeking.online
       # 用 :- 给默认空值,只在启用 observability profile 时才需要真值
       # 不然 docker compose 全局插值会强制要求(即使本服务不启动)
