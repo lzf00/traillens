@@ -21,6 +21,10 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
+    # ---- 扩展(每次启动 init script 可能没跑,这里幂等装一次) -----------
+    op.execute('CREATE EXTENSION IF NOT EXISTS "uuid-ossp";')
+    op.execute('CREATE EXTENSION IF NOT EXISTS vector;')
+
     # ---- subscriptions ---------------------------------------------------
     op.execute(
         """
