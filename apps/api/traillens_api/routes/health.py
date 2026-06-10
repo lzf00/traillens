@@ -102,11 +102,22 @@ async def _check_aesthetic_endpoint() -> dict[str, Any]:
 
 
 async def _check_mcp_inprocess() -> dict[str, Any]:
-    """MCP 的 in-process 路径:能 import + 能 dispatch 就算通。"""
+    """MCP 的 in-process 路径:能 import + 能 dispatch 就算通。
+
+    路径自适应:本地 monorepo(parents[4])和 docker 容器(parents[3])
+    布局不同,逐个尝试。
+    """
     import sys
     from pathlib import Path
-    mcp_root = Path(__file__).resolve().parents[4] / "packages" / "mcp_servers"
-    if not mcp_root.exists():
+
+    here = Path(__file__).resolve()
+    candidates = [
+        here.parents[4] / "packages" / "mcp_servers",  # 本地仓库根
+        here.parents[3] / "packages" / "mcp_servers",  # docker /app/
+        Path("/app/packages/mcp_servers"),              # docker 显式
+    ]
+    mcp_root = next((p for p in candidates if p.exists()), None)
+    if mcp_root is None:
         return {"ok": False, "error": "mcp_servers dir missing"}
     sys.path.insert(0, str(mcp_root / "traillens_sunmoon"))
     try:
