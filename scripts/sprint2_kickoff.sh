@@ -67,11 +67,16 @@ PY
 # ---------- 3. 预打分 ----------
 echo ""
 echo "──── 3. AI 预打分(prefill)────"
-if [ -n "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}" ]; then
-  echo "→ 检测到 API key,用真实 VLM 预打分"
+# 加载 .env 让脚本看到豆包 key
+[ -f .env ] && set -a && . .env && set +a
+if [ -n "${ARK_API_KEY:-}${DOUBAO_API_KEY:-}" ]; then
+  echo "→ 检测到豆包 key,用豆包视觉模型预打分(优先)"
+  python3 packages/annotation/server/doubao_prefill.py "$PHOTOS_DIR"
+elif [ -n "${OPENAI_API_KEY:-}${ANTHROPIC_API_KEY:-}" ]; then
+  echo "→ 用 GPT/Claude 预打分"
   python3 packages/annotation/server/gpt_prefill.py "$PHOTOS_DIR"
 else
-  echo "→ 无 OPENAI_API_KEY / ANTHROPIC_API_KEY,用 stub(确定性)"
+  echo "→ 无任何 LLM key,用 stub(确定性)"
   python3 packages/annotation/server/stub_prefill.py "$PHOTOS_DIR"
 fi
 
