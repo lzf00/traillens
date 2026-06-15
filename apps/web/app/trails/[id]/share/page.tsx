@@ -13,7 +13,8 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
-type PageProps = { params: { id: string } };
+// Next.js 15: dynamic route params are Promise-wrapped
+type PageProps = { params: Promise<{ id: string }> };
 
 type Trail = {
   id: string;
@@ -51,7 +52,8 @@ async function fetchPhotos(id: string): Promise<Photo[]> {
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
-  const trail = await fetchTrail(params.id);
+  const { id } = await params;
+  const trail = await fetchTrail(id);
   if (!trail) return {};
   const title = `${trail.name} · ${trail.location_name ?? "Trail"}`;
   const ogParams = new URLSearchParams({
@@ -74,9 +76,10 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
 }
 
 export default async function SharePage({ params }: PageProps) {
-  const trail = await fetchTrail(params.id);
+  const { id } = await params;
+  const trail = await fetchTrail(id);
   if (!trail) notFound();
-  const photos = (await fetchPhotos(params.id)).filter((p) => p.verdict === "keep");
+  const photos = (await fetchPhotos(id)).filter((p) => p.verdict === "keep");
 
   // JSON-LD: schema.org/ImageGallery + Photograph,助 Google Images 收录
   const jsonLd = {

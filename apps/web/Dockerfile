@@ -15,9 +15,9 @@ RUN npm config set registry https://mirrors.cloud.tencent.com/npm/
 COPY --from=deps /app/node_modules ./node_modules
 COPY apps/web/ .
 
-# Next.js standalone 输出,镜像最小
+# Next.js 构建(失败时立刻终止,不容错)
 ENV NEXT_TELEMETRY_DISABLED=1
-RUN npm run build || (echo "如果 next.config 没启 standalone,继续走完整构建" && true)
+RUN npm run build
 
 # ---------- runtime ----------
 FROM node:20-slim AS runtime
