@@ -1,5 +1,8 @@
 "use client";
 
+// Skip prerender — next-intl loads messages per request
+export const dynamic = "force-dynamic";
+
 /**
  * /app/settings — 账号、API token、PIAA 偏好、订阅。
  *

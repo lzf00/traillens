@@ -1,3 +1,6 @@
+// Skip prerender — next-intl loads messages per request
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 

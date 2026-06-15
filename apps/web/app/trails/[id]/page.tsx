@@ -1,5 +1,8 @@
 "use client";
 
+// Skip prerender — next-intl loads messages per request
+export const dynamic = "force-dynamic";
+
 /**
  * Trail 主舞台(Canvas)。PRODUCT_PLAN.md §3.2 的实现。
  *

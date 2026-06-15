@@ -1,5 +1,8 @@
 "use client";
 
+// Skip prerender — next-intl loads messages per request
+export const dynamic = "force-dynamic";
+
 /**
  * /app/library — 跨 trail 的语义搜索界面。
  *
