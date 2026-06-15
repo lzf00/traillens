@@ -28,6 +28,12 @@ runs/
 packages/annotation/photos/*
 !packages/annotation/photos/.gitkeep
 !packages/annotation/photos/PUT_PHOTOS_HERE.md
+
+# 剔除的非风光照(本地保留作 review;不上传 GitHub)
+packages/annotation/photos_excluded/
+
+# 预打分 + 标注数据(本地训练用,不上传 GitHub)
+packages/annotation/data/*.jsonl
 *.ckpt
 *.safetensors
 *.bin
