@@ -83,6 +83,23 @@ services:
     ports:
       - "127.0.0.1:8000:8000"
 
+  # Web 前端(Next.js 15) — host nginx 反代到 127.0.0.1:3000
+  web:
+    build:
+      context: ../../
+      dockerfile: apps/web/Dockerfile
+    container_name: traillens-web
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 3000
+      # 前端调 API 的地址(同 CVM 走 https 即可)
+      NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://api.traillens.zorotreeking.online}
+      # 关掉客户端遥测
+      NEXT_TELEMETRY_DISABLED: "1"
+    ports:
+      - "127.0.0.1:3000:3000"   # 仅本机暴露,host nginx 反代
+
   caddy:
     image: caddy:2-alpine
     container_name: traillens-caddy

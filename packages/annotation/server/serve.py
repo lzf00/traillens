@@ -80,7 +80,9 @@ class Handler(BaseHTTPRequestHandler):
             }
             self._send(200, "application/json", json.dumps(payload).encode())
         elif u.path.startswith("/photos/"):
-            rel = u.path[len("/photos/"):]
+            # 中文文件名是 URL percent-encoded,需要 unquote 才能找到文件
+            from urllib.parse import unquote
+            rel = unquote(u.path[len("/photos/"):])
             if ".." in rel:
                 self._send(400, "text/plain", b"bad path")
                 return
