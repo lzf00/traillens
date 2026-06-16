@@ -34,6 +34,14 @@ def create_trail(
     return trail
 
 
+@router.get("", response_model=list[TrailOut])
+def list_trails(
+    limit: int = 50,
+    user: CurrentUser = Depends(get_current_user),
+) -> list[TrailOut]:
+    return store.list_trails(user_id=user.id, limit=limit)
+
+
 @router.get("/{trail_id}", response_model=TrailOut)
 def get_trail(
     trail_id: str,

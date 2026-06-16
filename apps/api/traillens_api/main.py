@@ -57,7 +57,12 @@ init_sentry(app)  # 没 SENTRY_DSN 自动 no-op
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:3000", "http://localhost:3001"],
+    allow_origins=[
+        "http://localhost:3000",
+        "http://localhost:3001",
+        "https://traillens.zorotreeking.online",
+        *[o.strip() for o in os.environ.get("TRAILLENS_EXTRA_CORS", "").split(",") if o.strip()],
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],

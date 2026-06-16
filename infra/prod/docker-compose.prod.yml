@@ -93,8 +93,10 @@ services:
     environment:
       NODE_ENV: production
       PORT: 3000
-      # 前端调 API 的地址(同 CVM 走 https 即可)
+      # 客户端调 API 的地址(浏览器走 https 公网)
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-https://api.traillens.zorotreeking.online}
+      # SSR 时优先走 docker 内网,避免回环走公网 + SSL 握手
+      TRAILLENS_API_INTERNAL_BASE: http://api:8000
       # 关掉客户端遥测
       NEXT_TELEMETRY_DISABLED: "1"
     ports:

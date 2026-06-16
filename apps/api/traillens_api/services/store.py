@@ -40,6 +40,12 @@ def get_trail(trail_id: str, *, user_id: str) -> TrailOut | None:
     return _mem_get_trail(trail_id, user_id=user_id)
 
 
+def list_trails(*, user_id: str, limit: int = 50) -> list[TrailOut]:
+    if db.has_db():
+        return _db_list_trails(user_id=user_id, limit=limit)
+    return _mem_list_trails(user_id=user_id, limit=limit)
+
+
 def add_photos(trail_id: str, *, user_id: str, photos: list[PhotoIn]) -> int:
     if db.has_db():
         return _db_add_photos(trail_id, user_id=user_id, photos=photos)
@@ -111,6 +117,12 @@ def _mem_list_photos(trail_id, *, user_id):
     return _PHOTOS.get(trail_id, [])
 
 
+def _mem_list_trails(*, user_id, limit):
+    out = [t for t in _TRAILS.values() if t.user_id == user_id]
+    out.sort(key=lambda t: t.updated_at, reverse=True)
+    return out[:limit]
+
+
 # --------------------------------------------------------------------------- #
 # Postgres 实现(裸 SQL,对接 Alembic 0001)
 # --------------------------------------------------------------------------- #
@@ -157,6 +169,21 @@ def _db_get_trail(trail_id, *, user_id):
     with db.session() as s:
         row = s.execute(sql, dict(tid=trail_id, uid=user_id)).first()
         return _row_to_trail(row) if row else None
+
+
+def _db_list_trails(*, user_id, limit):
+    sql = _text("""
+        SELECT t.id, t.user_id, t.name, t.location_name, t.gpx_uri, t.state,
+               t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
+               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count
+        FROM trails t
+        WHERE t.user_id = :uid
+        ORDER BY t.updated_at DESC
+        LIMIT :lim
+    """)
+    with db.session() as s:
+        rows = s.execute(sql, dict(uid=user_id, lim=limit)).all()
+        return [_row_to_trail(r) for r in rows]
 
 
 def _db_add_photos(trail_id, *, user_id, photos):
