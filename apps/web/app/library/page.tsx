@@ -1,19 +1,10 @@
 "use client";
 
-// Skip prerender — next-intl loads messages per request
-export const dynamic = "force-dynamic";
-
 /**
  * /app/library — 跨 trail 的语义搜索界面。
- *
- * 设计:
- * - 顶部一行 search bar(Perplexity-style),实时类型不触发,Enter / 防抖 300ms
- * - 下方 grid 显示结果照片,hover 显示 trail name + 分数
- * - 没结果时给"试试这些"的样例搜索词
  */
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { Search } from "lucide-react";
 
 type Hit = {
@@ -27,7 +18,6 @@ type Hit = {
 const EXAMPLES = ["秋天 川西 逆光", "冰川 蓝时刻 长曝", "草原 三分法 黄昏"];
 
 export default function LibraryPage() {
-  const t = useTranslations("Library");
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
@@ -46,7 +36,7 @@ export default function LibraryPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="mb-8">
-        <h1 className="font-display text-3xl text-fg-primary mb-4">{t("title")}</h1>
+        <h1 className="font-display text-3xl text-fg-primary mb-4">语义搜索</h1>
 
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary" />
@@ -54,7 +44,7 @@ export default function LibraryPage() {
             autoFocus
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder={t("placeholder")}
+            placeholder="试试:川西秋天逆光 / 冰川蓝时刻 / 风光极简留白..."
             className="w-full rounded-lg bg-bg-raised border border-divider pl-10 pr-4 py-3 text-fg-primary placeholder:text-fg-tertiary"
           />
         </div>
@@ -74,10 +64,12 @@ export default function LibraryPage() {
         )}
       </header>
 
-      {loading && <div className="mono">{t("searching")}</div>}
+      {loading && <div className="mono">搜索中…</div>}
 
       {!loading && q && hits.length === 0 && (
-        <div className="text-fg-tertiary text-sm">{t("empty_hint")}</div>
+        <div className="text-fg-tertiary text-sm">
+          暂无结果。语义搜索 Sprint 5 末才接 pgvector,当前是 stub。
+        </div>
       )}
 
       <section className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3">

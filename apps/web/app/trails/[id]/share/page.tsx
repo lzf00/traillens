@@ -1,6 +1,3 @@
-// Skip prerender — next-intl loads messages per request
-export const dynamic = "force-dynamic";
-
 /**
  * 公开分享页 — Trail 的精选 + 游记 + 拍摄计划。
  *

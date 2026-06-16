@@ -1,19 +1,10 @@
 "use client";
 
-// Skip prerender — next-intl loads messages per request
-export const dynamic = "force-dynamic";
-
 /**
  * /app/settings — 账号、API token、PIAA 偏好、订阅。
- *
- * 设计要点:
- * - 单列 list-detail,不用 tab(tab 隐藏内容,设置页应当一屏全见)
- * - token 创建后只显示一次完整字符串,之后只显示前缀
- * - "升级"区域不在底部,在用户可能想升级时(配额接近上限)主动 surface
  */
 
 import { useEffect, useState } from "react";
-import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { UpgradeButton } from "@/components/ui/UpgradeButton";
 import { Copy, Trash2, Plus } from "lucide-react";
@@ -21,7 +12,6 @@ import { Copy, Trash2, Plus } from "lucide-react";
 type TokenInfo = { id: string; label: string; prefix: string; created_at: string };
 
 export default function SettingsPage() {
-  const t = useTranslations("Settings");
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("Lightroom Plugin");
@@ -52,25 +42,21 @@ export default function SettingsPage() {
   return (
     <main className="mx-auto max-w-3xl px-6 py-16">
       <header className="mb-12">
-        <h1 className="font-display text-4xl text-fg-primary">{t("title")}</h1>
+        <h1 className="font-display text-4xl text-fg-primary">Settings</h1>
       </header>
 
-      {/* 订阅 */}
-      <Section title={t("subscription")}>
+      <Section title="订阅">
         <div className="rounded-md border border-divider p-4">
-          <p className="text-fg-secondary text-sm mb-3">
-            {t("current_free", { plan: "Free", quota: 50 })}
-          </p>
+          <p className="text-fg-secondary text-sm mb-3">当前 Free 计划 · 50 张/月</p>
           <div className="flex gap-2">
-            <UpgradeButton plan="pro">{t("upgrade_pro")}</UpgradeButton>
-            <UpgradeButton plan="pro_plus">{t("upgrade_pro_plus")}</UpgradeButton>
+            <UpgradeButton plan="pro">升级 Pro · $19/月</UpgradeButton>
+            <UpgradeButton plan="pro_plus">升级 Pro+ · $49/月</UpgradeButton>
           </div>
         </div>
       </Section>
 
-      {/* API tokens */}
-      <Section title={t("api_tokens")}>
-        <p className="text-fg-secondary text-sm mb-3">{t("tokens_hint")}</p>
+      <Section title="API Tokens">
+        <p className="text-fg-secondary text-sm mb-3">用于 Lightroom 插件 / 自动化脚本 / 自研工具。</p>
 
         <div className="flex gap-2 mb-4">
           <input
@@ -79,12 +65,12 @@ export default function SettingsPage() {
             value={newLabel}
             onChange={(e) => setNewLabel(e.target.value)}
           />
-          <Button onClick={createToken}><Plus size={14} /> {t("create_token")}</Button>
+          <Button onClick={createToken}><Plus size={14} /> 创建</Button>
         </div>
 
         {newSecret && (
           <div className="mb-4 rounded-md border border-accent-aurora bg-accent-aurora/10 p-3">
-            <p className="mono text-xs text-fg-secondary mb-2">{t("token_one_time_warning")}</p>
+            <p className="mono text-xs text-fg-secondary mb-2">⚠ 这是 token 唯一显示的机会。立即复制。</p>
             <div className="flex items-center gap-2">
               <code className="mono text-xs text-accent-aurora flex-1 break-all">{newSecret}</code>
               <Button variant="ghost" onClick={() => navigator.clipboard.writeText(newSecret)}>
@@ -110,14 +96,13 @@ export default function SettingsPage() {
             </li>
           ))}
           {tokens.length === 0 && (
-            <li className="text-fg-tertiary text-sm">{t("no_tokens")}</li>
+            <li className="text-fg-tertiary text-sm">尚无 token</li>
           )}
         </ul>
       </Section>
 
-      {/* 个性化 */}
-      <Section title={t("piaa")}>
-        <p className="text-fg-secondary text-sm mb-3">{t("piaa_hint")}</p>
+      <Section title="个人风格偏好(PIAA)">
+        <p className="text-fg-secondary text-sm mb-3">标注 50 张以上后,我们会为你训练专属美学评分模型。</p>
         <div className="status-pill">0 / 50</div>
       </Section>
     </main>
