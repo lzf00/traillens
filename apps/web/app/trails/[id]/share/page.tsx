@@ -12,6 +12,7 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 // Next.js 15: dynamic route params are Promise-wrapped
 type PageProps = { params: Promise<{ id: string }> };
@@ -34,19 +35,13 @@ type Photo = {
 };
 
 async function fetchTrail(id: string): Promise<Trail | null> {
-  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
-  const r = await fetch(`${base}/v1/trails/${id}`, {
-    next: { revalidate: 300 },   // ISR:5min
-  });
+  const r = await apiFetch(`/v1/trails/${id}`, { next: { revalidate: 60 } });
   if (!r.ok) return null;
   return r.json();
 }
 
 async function fetchPhotos(id: string): Promise<Photo[]> {
-  const base = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:8000";
-  const r = await fetch(`${base}/v1/trails/${id}/photos`, {
-    next: { revalidate: 300 },
-  });
+  const r = await apiFetch(`/v1/trails/${id}/photos`, { next: { revalidate: 60 } });
   if (!r.ok) return [];
   return r.json();
 }

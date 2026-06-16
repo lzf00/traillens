@@ -18,23 +18,65 @@ import { ThumbnailTrack, type ThumbnailItem } from "@/components/canvas/Thumbnai
 import { ScoreRadar } from "@/components/canvas/ScoreRadar";
 import { AgentTrace, type TraceEntry } from "@/components/agent/AgentTrace";
 import { Button } from "@/components/ui/Button";
+import { apiFetch } from "@/lib/api";
 import { streamSse } from "@/lib/sse";
 import { Play, Square } from "lucide-react";
 
 export default function TrailPage({ params }: { params: Promise<{ id: string }> }) {
   // Next.js 15: params is now a Promise; use React.use() in client components
   const { id: trailId } = use(params);
+  const [trailName, setTrailName] = useState<string>("");
   const [photos, setPhotos] = useState<ThumbnailItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [running, setRunning] = useState(false);
+
+  // 首次进页面：拉 trail 详情 + 已有照片
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const [tr, ph] = await Promise.all([
+          apiFetch(`/v1/trails/${trailId}`),
+          apiFetch(`/v1/trails/${trailId}/photos`),
+        ]);
+        if (cancelled) return;
+        if (tr.ok) {
+          const t = await tr.json();
+          setTrailName(t.name);
+        }
+        if (ph.ok) {
+          const arr: Array<{ photo_id: string; uri: string; verdict?: string; aesthetic?: { overall?: number } }> =
+            await ph.json();
+          setPhotos(
+            arr.map((p) => ({
+              photo_id: p.photo_id,
+              uri: p.uri,
+              verdict: p.verdict,
+              overall: p.aesthetic?.overall,
+            }))
+          );
+        }
+      } catch {}
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [trailId]);
 
   const onRun = useCallback(async () => {
     if (running) return;
     setRunning(true);
     setTrace([]);
     try {
-      for await (const ev of streamSse(`/v1/trails/${trailId}/run`)) {
+      const base = process.env.NEXT_PUBLIC_API_BASE || "";
+      const uid =
+        typeof document !== "undefined"
+          ? document.cookie.match(/(?:^|;\s*)traillens_user_id=([^;]+)/)?.[1]
+          : null;
+      for await (const ev of streamSse(`${base}/v1/trails/${trailId}/run`, {
+        headers: uid ? { "X-Dev-User-Id": decodeURIComponent(uid) } : undefined,
+      })) {
         setTrace((prev) => [...prev, { ts: Date.now(), event: ev.event, data: ev.data }]);
 
         if (ev.event === "culling.photo_scored" && ev.data?.photo_id) {
@@ -82,10 +124,18 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
       {/* Header */}
       <header className="flex items-center justify-between border-b border-divider px-4 py-3">
         <div className="flex items-center gap-3">
-          <span className="font-display text-lg">Trail · {trailId}</span>
+          <span className="font-display text-lg">{trailName || `Trail · ${trailId.slice(0, 8)}`}</span>
           <span className="status-pill">{photos.length} 张 · {trace.length} 事件</span>
         </div>
         <div className="flex gap-2">
+          <a
+            href={`/trails/${trailId}/share`}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-divider px-3 py-1.5 text-xs text-fg-secondary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+          >
+            分享页
+          </a>
           {!running ? (
             <Button onClick={onRun}>
               <Play size={14} /> Run
