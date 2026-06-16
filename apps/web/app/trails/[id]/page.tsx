@@ -49,12 +49,15 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           const arr: Array<{ photo_id: string; uri: string; verdict?: string; aesthetic?: { overall?: number } }> =
             await ph.json();
           setPhotos(
-            arr.map((p) => ({
-              photo_id: p.photo_id,
-              uri: p.uri,
-              verdict: p.verdict,
-              overall: p.aesthetic?.overall,
-            }))
+            arr.map(
+              (p) =>
+                ({
+                  photo_id: p.photo_id,
+                  uri: p.uri,
+                  verdict: p.verdict,
+                  overall: p.aesthetic?.overall,
+                }) as ThumbnailItem
+            )
           );
         }
       } catch {}
