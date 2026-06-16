@@ -51,7 +51,9 @@ services:
       # 用 docker network 内的 hostname,不走公网
       DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-traillens}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-traillens}
       REDIS_URL: redis://redis:6379/0
-      TRAILLENS_ENV: prod
+      # MVP 阶段用 local：deps.py 读 X-Dev-User-Id header,前端 dev 桥配套
+      # 接真 Better Auth 后改回 prod
+      TRAILLENS_ENV: ${TRAILLENS_ENV:-local}
       PORT: 8000
       # 从主机 .env 继承(不内置 secret)
       # llm.py 接受 ARK_* 或 DOUBAO_* 任一命名,优先 ARK_*

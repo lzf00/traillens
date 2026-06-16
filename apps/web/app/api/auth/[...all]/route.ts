@@ -33,8 +33,10 @@ const USER_ID_COOKIE_OPTS = {
 };
 
 function userIdFromEmail(email: string): string {
-  // 把 email 哈希成稳定的 user_id（dev 桥用）
-  return "u-" + createHash("sha256").update(email.toLowerCase().trim()).digest("hex").slice(0, 16);
+  // 把 email 哈希成稳定的 UUID v4 格式（DB 的 user_id 列是 uuid 类型）
+  const h = createHash("sha256").update(email.toLowerCase().trim()).digest("hex");
+  // 固定 v4 + variant bits 让格式合法
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-4${h.slice(13, 16)}-${"89ab"[parseInt(h[16], 16) & 3]}${h.slice(17, 20)}-${h.slice(20, 32)}`;
 }
 
 export async function POST(
