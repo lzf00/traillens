@@ -40,10 +40,38 @@ def get_trail(trail_id: str, *, user_id: str) -> TrailOut | None:
     return _mem_get_trail(trail_id, user_id=user_id)
 
 
+def get_trail_public(trail_id: str) -> TrailOut | None:
+    """跨用户读取 — 仅用于分享页 SSR(无 user_id 限定)。"""
+    if db.has_db():
+        return _db_get_trail_public(trail_id)
+    trail = _TRAILS.get(trail_id)
+    return trail
+
+
+def list_photos_public(trail_id: str) -> list[PhotoOut]:
+    if db.has_db():
+        return _db_list_photos_public(trail_id)
+    return _PHOTOS.get(trail_id, [])
+
+
 def list_trails(*, user_id: str, limit: int = 50) -> list[TrailOut]:
     if db.has_db():
         return _db_list_trails(user_id=user_id, limit=limit)
     return _mem_list_trails(user_id=user_id, limit=limit)
+
+
+def update_trail(trail_id: str, *, user_id: str, name: str | None = None,
+                 location_name: str | None = None) -> TrailOut | None:
+    if db.has_db():
+        return _db_update_trail(trail_id, user_id=user_id, name=name, location_name=location_name)
+    return _mem_update_trail(trail_id, user_id=user_id, name=name, location_name=location_name)
+
+
+def delete_trail(trail_id: str, *, user_id: str) -> list[str]:
+    """删除 trail + 所有 photos(级联),返回被删的 photo uri 列表(供 caller 清 COS)。"""
+    if db.has_db():
+        return _db_delete_trail(trail_id, user_id=user_id)
+    return _mem_delete_trail(trail_id, user_id=user_id)
 
 
 def add_photos(trail_id: str, *, user_id: str, photos: list[PhotoIn]) -> int:
@@ -157,6 +185,28 @@ def _mem_list_trails(*, user_id, limit):
     return out[:limit]
 
 
+def _mem_update_trail(trail_id, *, user_id, name, location_name):
+    trail = _TRAILS.get(trail_id)
+    if not trail or trail.user_id != user_id:
+        return None
+    if name is not None:
+        trail.name = name
+    if location_name is not None:
+        trail.location_name = location_name
+    trail.updated_at = _now()
+    return trail
+
+
+def _mem_delete_trail(trail_id, *, user_id):
+    trail = _TRAILS.get(trail_id)
+    if not trail or trail.user_id != user_id:
+        return []
+    uris = [p.uri for p in _PHOTOS.get(trail_id, [])]
+    _TRAILS.pop(trail_id, None)
+    _PHOTOS.pop(trail_id, None)
+    return uris
+
+
 # --------------------------------------------------------------------------- #
 # Postgres 实现(裸 SQL,对接 Alembic 0001)
 # --------------------------------------------------------------------------- #
@@ -240,6 +290,10 @@ def _db_add_photos(trail_id, *, user_id, photos):
 def _db_list_photos(trail_id, *, user_id):
     if not _db_get_trail(trail_id, user_id=user_id):
         return []
+    return _db_list_photos_public(trail_id)
+
+
+def _db_list_photos_public(trail_id):
     sql = _text("""
         SELECT id, uri, verdict, reject_reason, aesthetic, critique, decision_trace
         FROM photos WHERE trail_id = :tid ORDER BY created_at
@@ -252,6 +306,53 @@ def _db_list_photos(trail_id, *, user_id):
             aesthetic=r.aesthetic, critique=r.critique,
             decision_trace=r.decision_trace or [],
         ) for r in rows]
+
+
+def _db_get_trail_public(trail_id):
+    sql = _text("""
+        SELECT t.id, t.user_id, t.name, t.location_name, t.gpx_uri, t.state,
+               t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
+               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count,
+               NULL::text AS cover_uri
+        FROM trails t WHERE t.id = :tid
+    """)
+    with db.session() as s:
+        row = s.execute(sql, dict(tid=trail_id)).first()
+        return _row_to_trail(row) if row else None
+
+
+def _db_update_trail(trail_id, *, user_id, name, location_name):
+    fields = []
+    params = {"tid": trail_id, "uid": user_id}
+    if name is not None:
+        fields.append("name = :name")
+        params["name"] = name
+    if location_name is not None:
+        fields.append("location_name = :loc")
+        params["loc"] = location_name
+    if not fields:
+        return _db_get_trail(trail_id, user_id=user_id)
+    sql = _text(f"""
+        UPDATE trails SET {', '.join(fields)}, updated_at = now()
+        WHERE id = :tid AND user_id = :uid
+    """)
+    with db.session() as s:
+        s.execute(sql, params)
+    return _db_get_trail(trail_id, user_id=user_id)
+
+
+def _db_delete_trail(trail_id, *, user_id):
+    """先查 photos uri,再 DELETE trail(级联删 photos)。"""
+    uris_sql = _text("""
+        SELECT uri FROM photos p
+        JOIN trails t ON p.trail_id = t.id
+        WHERE p.trail_id = :tid AND t.user_id = :uid
+    """)
+    del_sql = _text("DELETE FROM trails WHERE id = :tid AND user_id = :uid")
+    with db.session() as s:
+        uris = [r.uri for r in s.execute(uris_sql, dict(tid=trail_id, uid=user_id)).all()]
+        s.execute(del_sql, dict(tid=trail_id, uid=user_id))
+    return uris
 
 
 def _db_persist_run(trail_id, photos, *, travelogue_md, next_trip_plan):

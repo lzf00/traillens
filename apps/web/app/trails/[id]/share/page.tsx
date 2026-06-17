@@ -35,13 +35,13 @@ type Photo = {
 };
 
 async function fetchTrail(id: string): Promise<Trail | null> {
-  const r = await apiFetch(`/v1/trails/${id}`, { next: { revalidate: 60 } });
+  const r = await apiFetch(`/v1/trails/${id}/public`, { next: { revalidate: 60 } });
   if (!r.ok) return null;
   return r.json();
 }
 
 async function fetchPhotos(id: string): Promise<Photo[]> {
-  const r = await apiFetch(`/v1/trails/${id}/photos`, { next: { revalidate: 60 } });
+  const r = await apiFetch(`/v1/trails/${id}/photos/public`, { next: { revalidate: 60 } });
   if (!r.ok) return [];
   return r.json();
 }

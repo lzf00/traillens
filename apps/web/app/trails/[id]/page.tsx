@@ -20,9 +20,11 @@ import { AgentTrace, type TraceEntry } from "@/components/agent/AgentTrace";
 import { Button } from "@/components/ui/Button";
 import { apiFetch } from "@/lib/api";
 import { streamSse } from "@/lib/sse";
-import { Play, Square } from "lucide-react";
+import { Play, Square, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 export default function TrailPage({ params }: { params: Promise<{ id: string }> }) {
+  const router = useRouter();
   // Next.js 15: params is now a Promise; use React.use() in client components
   const { id: trailId } = use(params);
   const [trailName, setTrailName] = useState<string>("");
@@ -165,6 +167,24 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   }, [photos, selectedId]);
 
   const selected = photos.find((p) => p.photo_id === selectedId) ?? photos[0];
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  async function onRename() {
+    const next = prompt("新名称", trailName);
+    if (!next || next.trim() === trailName) return;
+    const r = await apiFetch(`/v1/trails/${trailId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: next.trim() }),
+    });
+    if (r.ok) setTrailName(next.trim());
+  }
+
+  async function onDelete() {
+    if (!confirm(`确定删除「${trailName}」?该 trail 的所有照片也会被删除,不可恢复。`)) return;
+    const r = await apiFetch(`/v1/trails/${trailId}`, { method: "DELETE" });
+    if (r.ok) router.push("/trails");
+  }
 
   return (
     <div className="flex h-dvh flex-col">
@@ -174,7 +194,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           <span className="font-display text-lg">{trailName || `Trail · ${trailId.slice(0, 8)}`}</span>
           <span className="status-pill">{photos.length} 张 · {trace.length} 事件</span>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 items-center relative">
           <a
             href={`/trails/${trailId}/share`}
             target="_blank"
@@ -191,6 +211,32 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
             <Button variant="danger" disabled>
               <Square size={14} /> 运行中
             </Button>
+          )}
+          <button
+            onClick={() => setMenuOpen((v) => !v)}
+            className="rounded-md border border-divider px-2 py-1.5 text-fg-secondary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+            aria-label="trail 菜单"
+          >
+            <MoreVertical size={14} />
+          </button>
+          {menuOpen && (
+            <div
+              className="absolute right-0 top-full mt-1 z-10 min-w-[140px] rounded-md border border-divider bg-bg-raised shadow-lg"
+              onMouseLeave={() => setMenuOpen(false)}
+            >
+              <button
+                onClick={() => { setMenuOpen(false); onRename(); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-fg-secondary hover:bg-bg-overlay hover:text-fg-primary text-left"
+              >
+                <Pencil size={12} /> 重命名
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); onDelete(); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-accent-danger hover:bg-bg-overlay text-left"
+              >
+                <Trash2 size={12} /> 删除 Trail
+              </button>
+            </div>
           )}
         </div>
       </header>

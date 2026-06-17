@@ -105,6 +105,20 @@ class Handler(BaseHTTPRequestHandler):
                 "progress": len(_existing_annotations()),
             }
             self._send(200, "application/json", json.dumps(payload).encode())
+        elif u.path == "/api/stats":
+            # Settings 训练面板查这个;不要返回敏感数据
+            photos = _list_photos()
+            existing = _existing_annotations()
+            prefill = _load_prefill()
+            target = 200  # LoRA 起步建议
+            payload = {
+                "total_photos": len(photos),
+                "annotated": len(existing),
+                "prefilled": len(prefill),
+                "target": target,
+                "ready_to_train": len(existing) >= target,
+            }
+            self._send(200, "application/json", json.dumps(payload).encode())
         elif u.path.startswith("/photos/"):
             # 中文文件名是 URL percent-encoded,需要 unquote 才能找到文件
             from urllib.parse import unquote

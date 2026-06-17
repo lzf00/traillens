@@ -58,12 +58,18 @@ export default async function HomePage() {
                 登录,开始使用
               </Link>
               <Link
-                href="https://github.com/lzf00/traillens"
-                target="_blank"
+                href="/trails/demo"
                 className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
                            transition-all hover:border-accent-glacier hover:text-accent-glacier"
               >
-                GitHub →
+                打开示例 Trail →
+              </Link>
+              <Link
+                href="https://github.com/lzf00/traillens"
+                target="_blank"
+                className="text-xs text-fg-tertiary hover:text-fg-secondary px-2 py-3"
+              >
+                GitHub
               </Link>
             </>
           )}

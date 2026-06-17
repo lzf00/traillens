@@ -7,17 +7,30 @@
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/Button";
 import { UpgradeButton } from "@/components/ui/UpgradeButton";
-import { Copy, Trash2, Plus } from "lucide-react";
+import { Copy, Trash2, Plus, Cpu } from "lucide-react";
 
 type TokenInfo = { id: string; label: string; prefix: string; created_at: string };
+
+type TrainStats = {
+  total_photos: number;
+  annotated: number;
+  prefilled: number;
+  target: number;
+  ready_to_train: boolean;
+};
 
 export default function SettingsPage() {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("Lightroom Plugin");
+  const [trainStats, setTrainStats] = useState<TrainStats | null>(null);
 
   useEffect(() => {
     fetch("/v1/settings/tokens").then((r) => r.json()).then(setTokens).catch(() => {});
+    fetch("/annotate/api/stats")
+      .then((r) => (r.ok ? r.json() : null))
+      .then(setTrainStats)
+      .catch(() => {});
   }, []);
 
   async function createToken() {
@@ -103,7 +116,62 @@ export default function SettingsPage() {
 
       <Section title="个人风格偏好(PIAA)">
         <p className="text-fg-secondary text-sm mb-3">标注 50 张以上后,我们会为你训练专属美学评分模型。</p>
-        <div className="status-pill">0 / 50</div>
+        <div className="status-pill">{trainStats?.annotated ?? 0} / 50</div>
+      </Section>
+
+      {/* Aesthetic LoRA 训练状态 */}
+      <Section title="美学模型 LoRA 训练">
+        {trainStats ? (
+          <div className="flex flex-col gap-4">
+            <div className="rounded-md border border-divider p-4 bg-bg-raised">
+              <div className="flex items-center gap-2 mb-3 text-fg-secondary">
+                <Cpu size={14} />
+                <span className="text-sm">数据集进度</span>
+                <span className="ml-auto mono text-xs text-fg-tertiary">
+                  目标 {trainStats.target} 张
+                </span>
+              </div>
+              <div className="h-2 rounded-full bg-bg-overlay overflow-hidden mb-2">
+                <div
+                  className="h-full bg-accent-aurora transition-all"
+                  style={{
+                    width: `${Math.min(100, (trainStats.annotated / trainStats.target) * 100)}%`,
+                  }}
+                />
+              </div>
+              <div className="flex justify-between text-xs text-fg-tertiary mono">
+                <span>已标 {trainStats.annotated}</span>
+                <span>预填 {trainStats.prefilled}</span>
+                <span>总样本 {trainStats.total_photos}</span>
+              </div>
+            </div>
+
+            <div className="rounded-md border border-divider p-4 text-sm">
+              <p className="text-fg-secondary mb-3">
+                {trainStats.ready_to_train
+                  ? "✅ 数据量足够,可启动 LoRA 训练。"
+                  : `还需 ${Math.max(0, trainStats.target - trainStats.annotated)} 张标注。`}
+              </p>
+              <p className="text-fg-tertiary text-xs mb-3 mono">
+                下一步(本地 / Modal GPU):
+              </p>
+              <pre className="mono text-xs bg-bg-raised rounded p-3 overflow-x-auto text-fg-secondary">
+{`# 1. 导出训练 manifest(80/10/10 split)
+ssh root@traillens '\\
+  docker exec traillens-annotation \\
+  python /app/server/export_manifest.py'
+
+# 2. 本地 LoRA 训练(需要 GPU)
+python packages/aesthetic/train_qalign_lora.py
+
+# 3. Modal 云上训练(无需本地 GPU)
+modal run packages/aesthetic/train_modal.py`}
+              </pre>
+            </div>
+          </div>
+        ) : (
+          <p className="text-fg-tertiary text-sm">标注后台离线,无法读取训练状态。</p>
+        )}
       </Section>
 
       <Section title="数据集标注工具">

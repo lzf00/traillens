@@ -258,6 +258,30 @@ def _presign_sigv4(op, key, cfg, *, expires, content_type):
     return f"{cfg['endpoint']}{canonical_uri}?{canonical_qs}&X-Amz-Signature={signature}"
 
 
+def delete_object_by_uri(uri: str) -> bool:
+    """根据 public URL 反查 key 后删 COS 对象。失败静默返回 False。"""
+    if not (uri and os.environ.get("COS_SECRET_ID") and os.environ.get("COS_SECRET_KEY")):
+        return False
+    # 形如 https://traillens-photos-xxx.cos.ap-shanghai.myqcloud.com/users/.../xxx.jpg
+    try:
+        path = uri.split("//", 1)[1].split("/", 1)[1] if "//" in uri else None
+    except IndexError:
+        return False
+    if not path:
+        return False
+    try:
+        from qcloud_cos import CosConfig, CosS3Client  # type: ignore
+        cfg = CosConfig(
+            Region=os.environ.get("COS_REGION", "ap-shanghai"),
+            SecretId=os.environ["COS_SECRET_ID"],
+            SecretKey=os.environ["COS_SECRET_KEY"],
+        )
+        CosS3Client(cfg).delete_object(Bucket=os.environ["COS_BUCKET"], Key=path)
+        return True
+    except Exception:  # noqa: BLE001
+        return False
+
+
 def put_object(key: str, data: bytes, content_type: str = "image/jpeg") -> str | None:
     """服务端代理上传(浏览器走不通 COS CORS 时的 fallback)。
 

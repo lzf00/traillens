@@ -53,6 +53,52 @@ def get_trail(
     return trail
 
 
+@router.get("/{trail_id}/public", response_model=TrailOut)
+def get_trail_public(trail_id: str) -> TrailOut:
+    """无需登录的公开 trail 读取(分享页用)。"""
+    trail = store.get_trail_public(trail_id)
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    return trail
+
+
+@router.get("/{trail_id}/photos/public", response_model=list[PhotoOut])
+def list_photos_public(trail_id: str) -> list[PhotoOut]:
+    return store.list_photos_public(trail_id)
+
+
+@router.patch("/{trail_id}", response_model=TrailOut)
+def update_trail(
+    trail_id: str,
+    body: dict,
+    user: CurrentUser = Depends(get_current_user),
+) -> TrailOut:
+    """编辑 trail name / location_name(其他字段先不开放)。"""
+    trail = store.update_trail(
+        trail_id, user_id=user.id,
+        name=body.get("name"),
+        location_name=body.get("location_name"),
+    )
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    return trail
+
+
+@router.delete("/{trail_id}", status_code=204)
+def delete_trail(
+    trail_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """删除 trail + 所有照片(DB 级联)+ COS 对象(best-effort)。"""
+    trail = store.get_trail(trail_id, user_id=user.id)
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    uris = store.delete_trail(trail_id, user_id=user.id)
+    for uri in uris:
+        storage.delete_object_by_uri(uri)
+    return None
+
+
 @router.post("/{trail_id}/photos:presign", status_code=200)
 def presign_uploads(
     trail_id: str,
