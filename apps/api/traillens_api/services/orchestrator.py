@@ -35,11 +35,41 @@ def _sse_and_log(run_id: str, event: str, data: dict) -> str:
     return _sse(event, data)
 
 
-def _build_initial_state(trail_id: str, run_id: str) -> GraphState:
-    # TODO Sprint 5:从 store 读真实 photos
+def _build_initial_state(trail_id: str, run_id: str, user_id: str | None = None) -> GraphState:
+    """从真实 store 读 trail 的 photos 构造 GraphState。
+
+    没有用户上下文时(单测/CLI)fallback 到 sample photos。
+    """
+    from . import store as _store
+    from traillens_agents.state.schema import Photo as _Photo  # noqa: WPS433
+
+    photos = []
+    trail_name = None
+    if user_id:
+        try:
+            trail = _store.get_trail(trail_id, user_id=user_id)
+            if trail:
+                trail_name = trail.name
+                ph_rows = _store.list_photos(trail_id, user_id=user_id)
+                photos = [
+                    _Photo(
+                        photo_id=p.photo_id,
+                        uri=p.uri,
+                        # exif 默认 stub(随机焦段),避免 culling/critic 卡空字段
+                        # 真 EXIF 解析等 packages/mcp_servers/exif_server.py 接通
+                        exif=clients.read_exif(p.uri),
+                    )
+                    for p in ph_rows
+                ]
+        except Exception:  # noqa: BLE001 — 单测 / 离线场景
+            photos = []
+    if not photos:
+        photos = clients.load_sample_photos(8)
+        trail_name = trail_name or "贡嘎环线"
+
     return GraphState(
-        photos=clients.load_sample_photos(8),
-        hike=HikeContext(location_name="贡嘎环线", gpx_uri="sample://"),
+        photos=photos,
+        hike=HikeContext(location_name=trail_name or "一次徒步", gpx_uri="sample://"),
         run_id=run_id,
     )
 
@@ -62,11 +92,11 @@ async def run_trail_stream(trail_id: str, run_id: str, user_id: str = "anon") ->
 
     with trace_agent_run(run_id, trail_id, user_id):
         try:
-            async for chunk in _via_langgraph(trail_id, run_id):
+            async for chunk in _via_langgraph(trail_id, run_id, user_id=user_id):
                 yield chunk
             return
         except _LangGraphUnavailable:
-            async for chunk in _via_fallback(trail_id, run_id):
+            async for chunk in _via_fallback(trail_id, run_id, user_id=user_id):
                 yield chunk
 
 
@@ -77,7 +107,7 @@ class _LangGraphUnavailable(Exception):
 # --------------------------------------------------------------------------- #
 # Path A:真实 LangGraph astream_events
 # --------------------------------------------------------------------------- #
-async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
+async def _via_langgraph(trail_id: str, run_id: str, user_id: str | None = None) -> AsyncIterator[str]:
     try:
         from traillens_agents.orchestrator import build_graph
     except ImportError:
@@ -87,7 +117,7 @@ async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
     except ImportError:
         raise _LangGraphUnavailable()
 
-    state = _build_initial_state(trail_id, run_id)
+    state = _build_initial_state(trail_id, run_id, user_id=user_id)
     last_state: GraphState | None = None
     seen_photo_ids: set[str] = set()
     try:
@@ -151,13 +181,13 @@ async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
 # --------------------------------------------------------------------------- #
 # Path B:fallback — 在线程池跑同步 run_fallback,边跑边推
 # --------------------------------------------------------------------------- #
-async def _via_fallback(trail_id: str, run_id: str) -> AsyncIterator[str]:
+async def _via_fallback(trail_id: str, run_id: str, user_id: str | None = None) -> AsyncIterator[str]:
     """跑同步 fallback,在线程外把 messages 当事件流"投递"。
 
     真实流式效果靠"每个 message 之间 sleep(0.02)"模拟,
     虽然不是 token-level streaming,但对 UX 已经足够"活"。
     """
-    state = _build_initial_state(trail_id, run_id)
+    state = _build_initial_state(trail_id, run_id, user_id=user_id)
 
     loop = asyncio.get_event_loop()
     final = await loop.run_in_executor(None, run_fallback, state)

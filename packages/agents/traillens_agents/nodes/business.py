@@ -143,8 +143,11 @@ def story_node(state: GraphState) -> dict:
         "",
     ]
     for i, p in enumerate(kept, 1):
+        # photo_id 是 UUID(36 字符)时截短只取头 8 位,看起来像"片段编号"
+        pid = p.photo_id
+        short_id = pid[:8] if len(pid) >= 32 and "-" in pid else pid
         lines.append(
-            f"{i}. `{p.photo_id}` — {p.exif.focal_length_mm}mm "
+            f"{i}. `{short_id}` — {p.exif.focal_length_mm}mm "
             f"f/{p.exif.aperture_f} ISO{p.exif.iso}。{p.critique or ''}"
         )
     return {
