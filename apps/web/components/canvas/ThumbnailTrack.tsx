@@ -40,7 +40,17 @@ export function ThumbnailTrack({
               isSelected ? "bg-bg-overlay ring-1 ring-accent-glacier" : "hover:bg-bg-raised",
             )}
           >
-            <div className="photo-frame h-12 w-16 shrink-0 bg-bg-overlay" aria-hidden />
+            <div className="photo-frame h-12 w-16 shrink-0 overflow-hidden bg-bg-overlay">
+              {it.uri ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={it.uri}
+                  alt={it.photo_id}
+                  loading="lazy"
+                  className="h-full w-full object-cover"
+                />
+              ) : null}
+            </div>
             <div className="flex min-w-0 flex-1 flex-col">
               <span className="truncate text-xs text-fg-primary">{it.photo_id}</span>
               <span className="mono">

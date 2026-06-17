@@ -156,10 +156,31 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
         <ThumbnailTrack items={photos} selectedId={selected?.photo_id} onSelect={setSelectedId} />
 
         <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
-          <div className="photo-frame flex h-[60vh] w-full max-w-2xl items-center justify-center bg-bg-overlay">
-            <span className="font-display text-2xl text-fg-tertiary">
-              {selected ? selected.photo_id : "选择一张照片"}
-            </span>
+          <div className="photo-frame relative flex h-[60vh] w-full max-w-3xl items-center justify-center overflow-hidden bg-bg-overlay">
+            {selected?.uri ? (
+              <>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img
+                  src={selected.uri}
+                  alt={selected.photo_id}
+                  className="h-full w-full object-contain"
+                />
+                {selected.verdict && (
+                  <span className="absolute top-3 right-3 status-pill backdrop-blur capitalize">
+                    {selected.verdict}
+                  </span>
+                )}
+                {selected.overall != null && (
+                  <span className="absolute bottom-3 right-3 status-pill backdrop-blur">
+                    {selected.overall.toFixed(1)}
+                  </span>
+                )}
+              </>
+            ) : (
+              <span className="font-display text-2xl text-fg-tertiary">
+                {selected ? selected.photo_id : "选择一张照片"}
+              </span>
+            )}
           </div>
           {selected?.overall != null && (
             <ScoreRadar
