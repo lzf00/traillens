@@ -67,73 +67,26 @@ export default function NewTrailPage() {
     }
     const trail = await createRes.json();
 
-    // 2. presign
-    setStage("presigning");
-    const presignRes = await apiFetch(`/v1/trails/${trail.id}/photos:presign`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        files: files.map((f) => ({
-          filename: f.name,
-          content_type: f.type || "image/jpeg",
-        })),
-      }),
-    });
-    if (!presignRes.ok) {
-      setStage("error");
-      setError(`获取上传地址失败：HTTP ${presignRes.status}`);
-      return;
-    }
-    const presign = await presignRes.json();
-    const uploads: Array<{ photo_id: string; put_url: string | null; public_url: string | null }> =
-      presign.uploads;
-
-    // 3. PUT to COS (并行)
+    // 2. 服务端代理上传(multipart):简单稳定,不依赖 COS CORS
     setStage("uploading");
     setProgress({ uploaded: 0, total: files.length });
-    const results: { uri: string }[] = [];
-    let uploaded = 0;
-    let firstError: string | null = null;
+    const form = new FormData();
+    for (const f of files) form.append("files", f, f.name);
 
-    await Promise.all(
-      files.map(async (file, i) => {
-        const u = uploads[i];
-        if (!u.put_url || !u.public_url) {
-          if (!firstError) firstError = "后端未配置对象存储 (presigned URL 为空)";
-          return;
-        }
-        try {
-          const r = await fetch(u.put_url, {
-            method: "PUT",
-            headers: { "Content-Type": file.type || "image/jpeg" },
-            body: file,
-          });
-          if (!r.ok) throw new Error(`HTTP ${r.status}`);
-          results.push({ uri: u.public_url });
-          uploaded++;
-          setProgress({ uploaded, total: files.length });
-        } catch (err) {
-          if (!firstError) firstError = `照片 ${file.name} 上传失败：${(err as Error).message}（可能是 COS CORS 未配置）`;
-        }
-      })
-    );
-
-    if (firstError && results.length === 0) {
+    const upRes = await apiFetch(`/v1/trails/${trail.id}/photos:upload`, {
+      method: "POST",
+      body: form,
+    });
+    if (!upRes.ok) {
       setStage("error");
-      setError(firstError);
+      setError(`上传失败：HTTP ${upRes.status}`);
       return;
     }
-
-    // 4. 注册到 trail
-    setStage("registering");
-    const bulkRes = await apiFetch(`/v1/trails/${trail.id}/photos:bulk`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ photos: results }),
-    });
-    if (!bulkRes.ok) {
+    const upData = await upRes.json();
+    setProgress({ uploaded: upData.accepted, total: files.length });
+    if (upData.failed?.length) {
       setStage("error");
-      setError(`注册照片失败：HTTP ${bulkRes.status}`);
+      setError(`部分上传失败:${upData.failed.join(", ")}`);
       return;
     }
 

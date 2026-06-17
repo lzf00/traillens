@@ -258,6 +258,33 @@ def _presign_sigv4(op, key, cfg, *, expires, content_type):
     return f"{cfg['endpoint']}{canonical_uri}?{canonical_qs}&X-Amz-Signature={signature}"
 
 
+def put_object(key: str, data: bytes, content_type: str = "image/jpeg") -> str | None:
+    """服务端代理上传(浏览器走不通 COS CORS 时的 fallback)。
+
+    成功 → 返回 public_url；
+    未配置存储后端 → 返回 None,routes 应当报 503。
+    """
+    if os.environ.get("COS_SECRET_ID") and os.environ.get("COS_SECRET_KEY"):
+        try:
+            from qcloud_cos import CosConfig, CosS3Client  # type: ignore
+        except ImportError:
+            return None
+        cfg = CosConfig(
+            Region=os.environ.get("COS_REGION", "ap-shanghai"),
+            SecretId=os.environ["COS_SECRET_ID"],
+            SecretKey=os.environ["COS_SECRET_KEY"],
+        )
+        client = CosS3Client(cfg)
+        client.put_object(
+            Bucket=os.environ["COS_BUCKET"],
+            Key=key,
+            Body=data,
+            ContentType=content_type,
+        )
+        return public_url(key)
+    return None
+
+
 def public_url(key: str) -> str | None:
     """优先级:COS_DOMAIN > QINIU_DOMAIN > R2_PUBLIC_BASE。"""
 

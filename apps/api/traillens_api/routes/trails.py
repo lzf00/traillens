@@ -7,7 +7,7 @@ from __future__ import annotations
 
 import uuid
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
 from ..deps import CurrentUser, check_quota, get_current_user
@@ -97,6 +97,46 @@ def add_photos(
     check_quota(user, requested=len(body.photos))
     n = store.add_photos(trail_id, user_id=user.id, photos=body.photos)
     return {"accepted": n, "trail_id": trail_id}
+
+
+@router.post("/{trail_id}/photos:upload", status_code=202)
+async def upload_photos(
+    trail_id: str,
+    files: list[UploadFile] = File(...),
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """服务端代理上传 fallback。
+
+    用于浏览器走不通 COS CORS 的环境(MVP 期默认走这条)。
+    后端拿到 multipart 后直接 put_object → 写入 trails.photos 表。
+    """
+    trail = store.get_trail(trail_id, user_id=user.id)
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    check_quota(user, requested=len(files))
+
+    from ..schemas import PhotoIn
+    photos: list[PhotoIn] = []
+    failed = []
+    for f in files:
+        ext = (f.filename or "").rsplit(".", 1)[-1] if f.filename and "." in f.filename else "jpg"
+        photo_id = str(uuid.uuid4())
+        key = storage.make_object_key(
+            user_id=user.id, trail_id=trail_id, photo_id=photo_id, ext=ext,
+        )
+        data = await f.read()
+        uri = storage.put_object(key, data, content_type=f.content_type or "image/jpeg")
+        if not uri:
+            failed.append(f.filename)
+            continue
+        photos.append(PhotoIn(uri=uri))
+
+    accepted = store.add_photos(trail_id, user_id=user.id, photos=photos)
+    return {
+        "accepted": accepted,
+        "failed": failed,
+        "trail_id": trail_id,
+    }
 
 
 @router.get("/{trail_id}/photos", response_model=list[PhotoOut])
