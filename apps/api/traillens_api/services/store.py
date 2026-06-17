@@ -58,6 +58,40 @@ def list_photos(trail_id: str, *, user_id: str) -> list[PhotoOut]:
     return _mem_list_photos(trail_id, user_id=user_id)
 
 
+def persist_run_results(
+    trail_id: str,
+    photos: list[Any],
+    *,
+    travelogue_md: str | None = None,
+    next_trip_plan: dict[str, Any] | None = None,
+) -> None:
+    """跑完 agent 把 GraphState.photos 的分数 + verdict + 游记/计划写回 DB。
+
+    photos 是 agent 包的 PhotoState 列表(uri 作主键匹配),按 uri 找已存的
+    photos 行,UPDATE verdict/aesthetic/critique。
+    """
+    if db.has_db():
+        _db_persist_run(trail_id, photos, travelogue_md=travelogue_md, next_trip_plan=next_trip_plan)
+        return
+    bucket = _PHOTOS.get(trail_id, [])
+    by_uri = {p.uri: p for p in bucket}
+    for ap in photos:
+        existing = by_uri.get(ap.uri)
+        if not existing:
+            continue
+        existing.verdict = getattr(ap.verdict, "value", ap.verdict) if ap.verdict else None
+        existing.reject_reason = ap.reject_reason
+        existing.aesthetic = ap.aesthetic.model_dump() if ap.aesthetic and hasattr(ap.aesthetic, "model_dump") else ap.aesthetic
+        existing.critique = ap.critique
+    trail = _TRAILS.get(trail_id)
+    if trail:
+        if travelogue_md:
+            trail.travelogue_md = travelogue_md
+        if next_trip_plan:
+            trail.next_trip_plan = next_trip_plan
+        trail.updated_at = _now()
+
+
 def update_state_summary(trail_id: str, summary: dict[str, Any]) -> None:
     if db.has_db():
         _db_update_state(trail_id, summary)
@@ -211,6 +245,41 @@ def _db_list_photos(trail_id, *, user_id):
             aesthetic=r.aesthetic, critique=r.critique,
             decision_trace=r.decision_trace or [],
         ) for r in rows]
+
+
+def _db_persist_run(trail_id, photos, *, travelogue_md, next_trip_plan):
+    upd_photo = _text("""
+        UPDATE photos
+           SET verdict       = :verdict,
+               reject_reason = :reason,
+               aesthetic     = CAST(:aesthetic AS jsonb),
+               critique      = :critique
+         WHERE trail_id = :tid AND uri = :uri
+    """)
+    upd_trail = _text("""
+        UPDATE trails
+           SET travelogue_md  = COALESCE(:tg, travelogue_md),
+               next_trip_plan = CAST(COALESCE(:plan, next_trip_plan::text) AS jsonb),
+               updated_at     = now()
+         WHERE id = :tid
+    """)
+    with db.session() as s:
+        for ap in photos:
+            verdict = getattr(ap.verdict, "value", ap.verdict) if ap.verdict else None
+            aesthetic = ap.aesthetic.model_dump() if (ap.aesthetic and hasattr(ap.aesthetic, "model_dump")) else ap.aesthetic
+            s.execute(upd_photo, dict(
+                tid=trail_id,
+                uri=ap.uri,
+                verdict=verdict,
+                reason=ap.reject_reason,
+                aesthetic=json.dumps(aesthetic) if aesthetic else None,
+                critique=ap.critique,
+            ))
+        s.execute(upd_trail, dict(
+            tid=trail_id,
+            tg=travelogue_md,
+            plan=json.dumps(next_trip_plan) if next_trip_plan else None,
+        ))
 
 
 def _db_update_state(trail_id, summary):

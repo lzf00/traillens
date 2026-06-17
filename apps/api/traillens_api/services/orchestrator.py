@@ -100,10 +100,19 @@ async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
             elif kind == "on_chain_end":
                 data = event.get("data", {}) or {}
                 output = data.get("output")
+                # LangGraph 节点的 output 可能是 dict、GraphState 或 BaseModel
+                photos_iter = None
                 if isinstance(output, dict) and "photos" in output:
-                    last_state = GraphState(**output) if not isinstance(output, GraphState) else output
-                    # diff:只 emit 新进入终态的照片
-                    for p in last_state.photos:
+                    last_state = output if isinstance(output, GraphState) else GraphState(**output)
+                    photos_iter = last_state.photos
+                elif isinstance(output, GraphState):
+                    last_state = output
+                    photos_iter = output.photos
+                elif hasattr(output, "photos"):
+                    last_state = output  # type: ignore[assignment]
+                    photos_iter = output.photos
+                if photos_iter:
+                    for p in photos_iter:
                         if p.aesthetic and p.photo_id not in seen_photo_ids:
                             seen_photo_ids.add(p.photo_id)
                             yield _sse("culling.photo_scored", _photo_event(p))
@@ -112,6 +121,22 @@ async def _via_langgraph(trail_id: str, run_id: str) -> AsyncIterator[str]:
         raise _LangGraphUnavailable() from e
 
     if last_state:
+        # 兜底:跑完后 photos 还没 emit 过的(可能 on_chain_end 漏抓)统一推
+        for p in last_state.photos:
+            if p.aesthetic and p.photo_id not in seen_photo_ids:
+                seen_photo_ids.add(p.photo_id)
+                yield _sse("culling.photo_scored", _photo_event(p))
+        # 持久化分数 + 游记 + 计划到 DB
+        try:
+            from . import store
+            store.persist_run_results(
+                trail_id,
+                last_state.photos,
+                travelogue_md=last_state.travelogue_md,
+                next_trip_plan=last_state.next_trip_plan,
+            )
+        except Exception as e:  # noqa: BLE001
+            yield _sse("run.error", {"phase": "persist", "error": str(e)})
         if last_state.travelogue_md:
             yield _sse("story.delta", {"chunk": last_state.travelogue_md})
         if last_state.next_trip_plan:
@@ -157,6 +182,18 @@ async def _via_fallback(trail_id: str, run_id: str) -> AsyncIterator[str]:
     for p in final.photos:
         if p.aesthetic:
             yield _sse("culling.photo_scored", _photo_event(p))
+
+    # 持久化到 DB
+    try:
+        from . import store
+        store.persist_run_results(
+            trail_id,
+            final.photos,
+            travelogue_md=final.travelogue_md,
+            next_trip_plan=final.next_trip_plan,
+        )
+    except Exception as e:  # noqa: BLE001
+        yield _sse("run.error", {"phase": "persist", "error": str(e)})
 
     yield _sse("run.finished", {
         "run_id": run_id, "trail_id": trail_id,

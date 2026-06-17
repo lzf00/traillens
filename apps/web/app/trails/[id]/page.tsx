@@ -100,6 +100,25 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
 
         if (ev.event === "run.finished") {
           setRunning(false);
+          // 兜底:即使 SSE 的 culling.photo_scored 漏推,从 DB 拉一次最新分数
+          try {
+            const r = await apiFetch(`/v1/trails/${trailId}/photos`);
+            if (r.ok) {
+              const arr: Array<{ photo_id: string; uri: string; verdict?: string; aesthetic?: { overall?: number } }> =
+                await r.json();
+              setPhotos(
+                arr.map(
+                  (p) =>
+                    ({
+                      photo_id: p.photo_id,
+                      uri: p.uri,
+                      verdict: p.verdict,
+                      overall: p.aesthetic?.overall,
+                    }) as ThumbnailItem
+                )
+              );
+            }
+          } catch {}
         }
       }
     } catch (err) {
