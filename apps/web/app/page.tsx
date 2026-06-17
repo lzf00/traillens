@@ -1,10 +1,13 @@
 import Link from "next/link";
 import { cookies } from "next/headers";
 
+// 强制每请求 SSR — cookies() 应自动让页面变 dynamic,但 Next 15
+// build 时 cookie store 空 → 把空态版本 prerender 出来 + 1 年缓存
+// 显式 force-dynamic 才能在每请求读 cookie
+export const dynamic = "force-dynamic";
+
 /**
  * Landing page。一屏内说清:是什么 / 怎么用 / 凭什么相信。
- * 参考 PRODUCT_PLAN.md §2.2 视觉系统。
- *
  * 已登录用户:CTA 换成"继续到我的 Trails",突出主流程入口
  */
 export default async function HomePage() {

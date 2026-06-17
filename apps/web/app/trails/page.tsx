@@ -5,6 +5,9 @@
  * 空列表显示 onboarding 提示 + "新建" CTA。
  */
 
+// 强制每请求 SSR — 读 cookie + 拉用户专属数据,不能被静态缓存
+export const dynamic = "force-dynamic";
+
 import Link from "next/link";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
