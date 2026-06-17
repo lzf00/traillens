@@ -175,6 +175,7 @@ def _row_to_trail(row) -> TrailOut:
         travelogue_md=row.travelogue_md,
         next_trip_plan=row.next_trip_plan,
         photo_count=row.photo_count or 0,
+        cover_uri=getattr(row, "cover_uri", None),
         state_summary=(row.state if isinstance(row.state, dict) else (json.loads(row.state or "{}"))),
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -209,7 +210,13 @@ def _db_list_trails(*, user_id, limit):
     sql = _text("""
         SELECT t.id, t.user_id, t.name, t.location_name, t.gpx_uri, t.state,
                t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
-               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count
+               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count,
+               (
+                 SELECT uri FROM photos
+                 WHERE trail_id = t.id
+                 ORDER BY (verdict = 'keep') DESC NULLS LAST, created_at ASC
+                 LIMIT 1
+               ) AS cover_uri
         FROM trails t
         WHERE t.user_id = :uid
         ORDER BY t.updated_at DESC

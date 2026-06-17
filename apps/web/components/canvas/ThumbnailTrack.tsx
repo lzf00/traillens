@@ -3,11 +3,24 @@
 import { cn } from "@/lib/cn";
 import { Check, X, AlertCircle } from "lucide-react";
 
+export type AestheticScores = {
+  overall: number;
+  composition: number;
+  visual_elements: number;
+  technical: number;
+  originality: number;
+  theme: number;
+  emotion: number;
+  gestalt: number;
+};
+
 export type ThumbnailItem = {
   photo_id: string;
   uri: string;
   verdict?: "keep" | "reject" | "review" | null;
   overall?: number | null;
+  aesthetic?: AestheticScores | null;
+  critique?: string | null;
 };
 
 const verdictIcon = {

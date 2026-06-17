@@ -26,6 +26,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   // Next.js 15: params is now a Promise; use React.use() in client components
   const { id: trailId } = use(params);
   const [trailName, setTrailName] = useState<string>("");
+  const [travelogueMd, setTravelogueMd] = useState<string | null>(null);
+  const [nextTripPlan, setNextTripPlan] = useState<Record<string, any> | null>(null);
   const [photos, setPhotos] = useState<ThumbnailItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trace, setTrace] = useState<TraceEntry[]>([]);
@@ -44,10 +46,17 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
         if (tr.ok) {
           const t = await tr.json();
           setTrailName(t.name);
+          setTravelogueMd(t.travelogue_md ?? null);
+          setNextTripPlan(t.next_trip_plan ?? null);
         }
         if (ph.ok) {
-          const arr: Array<{ photo_id: string; uri: string; verdict?: string; aesthetic?: { overall?: number } }> =
-            await ph.json();
+          const arr: Array<{
+            photo_id: string;
+            uri: string;
+            verdict?: string;
+            aesthetic?: any;
+            critique?: string;
+          }> = await ph.json();
           setPhotos(
             arr.map(
               (p) =>
@@ -56,6 +65,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
                   uri: p.uri,
                   verdict: p.verdict,
                   overall: p.aesthetic?.overall,
+                  aesthetic: p.aesthetic ?? null,
+                  critique: p.critique ?? null,
                 }) as ThumbnailItem
             )
           );
@@ -101,11 +112,23 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
         if (ev.event === "run.finished") {
           setRunning(false);
           // 兜底:即使 SSE 的 culling.photo_scored 漏推,从 DB 拉一次最新分数
+          // 同时 refetch trail 拿最新游记 + 拍摄计划
           try {
+            const trRes = await apiFetch(`/v1/trails/${trailId}`);
+            if (trRes.ok) {
+              const t = await trRes.json();
+              setTravelogueMd(t.travelogue_md ?? null);
+              setNextTripPlan(t.next_trip_plan ?? null);
+            }
             const r = await apiFetch(`/v1/trails/${trailId}/photos`);
             if (r.ok) {
-              const arr: Array<{ photo_id: string; uri: string; verdict?: string; aesthetic?: { overall?: number } }> =
-                await r.json();
+              const arr: Array<{
+                photo_id: string;
+                uri: string;
+                verdict?: string;
+                aesthetic?: any;
+                critique?: string;
+              }> = await r.json();
               setPhotos(
                 arr.map(
                   (p) =>
@@ -114,6 +137,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
                       uri: p.uri,
                       verdict: p.verdict,
                       overall: p.aesthetic?.overall,
+                      aesthetic: p.aesthetic ?? null,
+                      critique: p.critique ?? null,
                     }) as ThumbnailItem
                 )
               );
@@ -201,27 +226,99 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
               </span>
             )}
           </div>
-          {selected?.overall != null && (
-            <ScoreRadar
-              scores={{
-                overall: selected.overall,
-                composition: selected.overall,
-                visual_elements: selected.overall,
-                technical: selected.overall,
-                originality: selected.overall,
-                theme: selected.overall,
-                emotion: selected.overall,
-                gestalt: selected.overall,
-              }}
-            />
+          {selected?.aesthetic && (
+            <ScoreRadar scores={selected.aesthetic} />
+          )}
+          {selected?.critique && (
+            <div className="max-w-2xl w-full rounded-md border border-divider bg-bg-raised p-4">
+              <h3 className="mono mb-2 text-fg-secondary">AI 点评</h3>
+              <p className="text-sm text-fg-primary leading-relaxed">{selected.critique}</p>
+            </div>
           )}
           <div className="mono">
             <kbd>j</kbd>/<kbd>k</kbd> 切换 · <kbd>?</kbd> 帮助
           </div>
         </main>
 
-        <AgentTrace entries={trace} />
+        <RightPanel
+          trace={trace}
+          travelogueMd={travelogueMd}
+          nextTripPlan={nextTripPlan}
+        />
       </div>
     </div>
+  );
+}
+
+function RightPanel({
+  trace,
+  travelogueMd,
+  nextTripPlan,
+}: {
+  trace: TraceEntry[];
+  travelogueMd: string | null;
+  nextTripPlan: Record<string, any> | null;
+}) {
+  const tabs = [
+    { key: "trace" as const, label: `Trace · ${trace.length}` },
+    { key: "story" as const, label: travelogueMd ? "游记" : "游记 ·" },
+    { key: "plan" as const, label: nextTripPlan ? "拍摄计划" : "计划 ·" },
+  ];
+  const [active, setActive] = useState<"trace" | "story" | "plan">("trace");
+  return (
+    <aside className="flex w-96 shrink-0 flex-col border-l border-divider bg-bg-base">
+      <div className="flex border-b border-divider">
+        {tabs.map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setActive(t.key)}
+            className={
+              "flex-1 px-3 py-2 text-xs mono transition-colors " +
+              (active === t.key
+                ? "text-fg-primary border-b-2 border-accent-aurora"
+                : "text-fg-tertiary hover:text-fg-secondary")
+            }
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+      <div className="flex-1 overflow-y-auto">
+        {active === "trace" && <AgentTrace entries={trace} />}
+        {active === "story" && (
+          <div className="p-4">
+            {travelogueMd ? (
+              <article className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-fg-primary">
+                {travelogueMd}
+              </article>
+            ) : (
+              <p className="mono text-fg-tertiary">游记会在 Run 跑完后生成。</p>
+            )}
+          </div>
+        )}
+        {active === "plan" && (
+          <div className="p-4">
+            {nextTripPlan ? (
+              <dl className="flex flex-col gap-3 text-sm">
+                {Object.entries(nextTripPlan).map(([k, v]) => (
+                  <div key={k} className="flex flex-col gap-1">
+                    <dt className="mono text-fg-tertiary">{k}</dt>
+                    <dd className="text-fg-primary">
+                      {Array.isArray(v)
+                        ? v.map(String).join("、")
+                        : typeof v === "object" && v !== null
+                          ? JSON.stringify(v, null, 2)
+                          : String(v)}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            ) : (
+              <p className="mono text-fg-tertiary">下次拍摄计划会在 Run 跑完后生成。</p>
+            )}
+          </div>
+        )}
+      </div>
+    </aside>
   );
 }

@@ -1,10 +1,15 @@
 import Link from "next/link";
+import { cookies } from "next/headers";
 
 /**
  * Landing page。一屏内说清:是什么 / 怎么用 / 凭什么相信。
  * 参考 PRODUCT_PLAN.md §2.2 视觉系统。
+ *
+ * 已登录用户:CTA 换成"继续到我的 Trails",突出主流程入口
  */
-export default function HomePage() {
+export default async function HomePage() {
+  const c = await cookies();
+  const loggedIn = Boolean(c.get("traillens_user_id")?.value);
   return (
     <main className="min-h-dvh px-6 py-24 md:px-12">
       <div className="mx-auto max-w-3xl">
@@ -23,21 +28,42 @@ export default function HomePage() {
         </p>
 
         <div className="mt-12 flex flex-wrap items-center gap-3">
-          <Link
-            href="/trails/demo"
-            className="rounded-md bg-accent-aurora px-5 py-3 text-sm font-medium text-bg-base
-                       transition-all duration-DEFAULT ease-trail hover:bg-accent-aurora/90"
-          >
-            打开示例 Trail
-          </Link>
-          <Link
-            href="https://github.com/lzf00/traillens"
-            target="_blank"
-            className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
-                       transition-all hover:border-accent-glacier hover:text-accent-glacier"
-          >
-            GitHub →
-          </Link>
+          {loggedIn ? (
+            <>
+              <Link
+                href="/trails"
+                className="rounded-md bg-accent-aurora px-5 py-3 text-sm font-medium text-bg-base
+                           transition-all duration-DEFAULT ease-trail hover:bg-accent-aurora/90"
+              >
+                继续到我的 Trails →
+              </Link>
+              <Link
+                href="/trails/new"
+                className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
+                           transition-all hover:border-accent-glacier hover:text-accent-glacier"
+              >
+                新建 Trail
+              </Link>
+            </>
+          ) : (
+            <>
+              <Link
+                href="/login"
+                className="rounded-md bg-accent-aurora px-5 py-3 text-sm font-medium text-bg-base
+                           transition-all duration-DEFAULT ease-trail hover:bg-accent-aurora/90"
+              >
+                登录,开始使用
+              </Link>
+              <Link
+                href="https://github.com/lzf00/traillens"
+                target="_blank"
+                className="rounded-md border border-divider px-5 py-3 text-sm text-fg-primary
+                           transition-all hover:border-accent-glacier hover:text-accent-glacier"
+              >
+                GitHub →
+              </Link>
+            </>
+          )}
         </div>
 
         <div className="mt-24 grid gap-8 text-sm text-fg-secondary md:grid-cols-3">

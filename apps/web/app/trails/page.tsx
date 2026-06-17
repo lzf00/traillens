@@ -16,6 +16,7 @@ type Trail = {
   name: string;
   location_name: string | null;
   photo_count: number;
+  cover_uri: string | null;
   created_at: string;
   updated_at: string;
 };
@@ -80,19 +81,36 @@ export default async function TrailsPage() {
             <Link
               key={t.id}
               href={`/trails/${t.id}`}
-              className="block rounded-md border border-divider bg-bg-raised p-4 hover:border-accent-aurora transition-colors"
+              className="group block rounded-md overflow-hidden border border-divider bg-bg-raised hover:border-accent-aurora transition-colors"
             >
-              <h3 className="font-display text-lg text-fg-primary mb-1 truncate">
-                {t.name}
-              </h3>
-              <p className="text-sm text-fg-secondary mb-3 truncate">
-                {t.location_name || "未指定位置"}
-              </p>
-              <div className="flex items-center justify-between text-xs">
-                <span className="status-pill">{t.photo_count} 张</span>
-                <time className="mono text-fg-tertiary" dateTime={t.updated_at}>
-                  {new Date(t.updated_at).toLocaleDateString("zh-CN")}
-                </time>
+              <div className="aspect-[3/2] w-full overflow-hidden bg-bg-overlay">
+                {t.cover_uri ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={t.cover_uri}
+                    alt={t.name}
+                    loading="lazy"
+                    className="h-full w-full object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.02]"
+                  />
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center font-display text-2xl text-fg-tertiary">
+                    {t.photo_count > 0 ? `${t.photo_count} 张` : "空"}
+                  </div>
+                )}
+              </div>
+              <div className="p-4">
+                <h3 className="font-display text-lg text-fg-primary mb-1 truncate">
+                  {t.name}
+                </h3>
+                <p className="text-sm text-fg-secondary mb-3 truncate">
+                  {t.location_name || "未指定位置"}
+                </p>
+                <div className="flex items-center justify-between text-xs">
+                  <span className="status-pill">{t.photo_count} 张</span>
+                  <time className="mono text-fg-tertiary" dateTime={t.updated_at}>
+                    {new Date(t.updated_at).toLocaleDateString("zh-CN")}
+                  </time>
+                </div>
               </div>
             </Link>
           ))}

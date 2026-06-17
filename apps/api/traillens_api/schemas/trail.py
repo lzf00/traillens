@@ -48,6 +48,8 @@ class TrailOut(BaseModel):
     travelogue_md: str | None = None
     next_trip_plan: dict[str, Any] | None = None
     photo_count: int = 0
+    # 首张照片 URI(列表卡片缩略图用,有 keep 优先 keep,否则 created_at 最早)
+    cover_uri: str | None = None
     state_summary: dict[str, Any] = Field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
