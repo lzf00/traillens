@@ -105,6 +105,20 @@ export default function SettingsPage() {
         <p className="text-fg-secondary text-sm mb-3">标注 50 张以上后,我们会为你训练专属美学评分模型。</p>
         <div className="status-pill">0 / 50</div>
       </Section>
+
+      <Section title="数据集标注工具">
+        <p className="text-fg-secondary text-sm mb-3">
+          给 LoRA 训练造真值标签 · 8 维评分 · 键盘快捷键打分 · 仅限授权邮箱访问
+        </p>
+        <a
+          href="/annotate/"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex items-center gap-2 rounded-md bg-bg-raised border border-divider px-4 py-2 text-sm text-fg-primary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+        >
+          打开标注后台 →
+        </a>
+      </Section>
     </main>
   );
 }
