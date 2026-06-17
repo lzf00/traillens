@@ -16,6 +16,7 @@ COPY apps/api/pyproject.toml ./
 RUN pip install --no-cache-dir --prefix=/install \
     -i https://mirrors.cloud.tencent.com/pypi/simple/ \
     "fastapi>=0.110" "uvicorn[standard]>=0.27" "pydantic>=2.7" \
+    "python-multipart>=0.0.9" \
     "sqlalchemy>=2.0" "psycopg[binary]>=3.1" "alembic>=1.13" \
     "httpx>=0.27" "redis>=5.0" \
     "openai>=1.50" "cos-python-sdk-v5>=1.9" "qiniu>=7.13" \
