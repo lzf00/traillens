@@ -101,7 +101,7 @@ const DIM_LABEL = {
 };
 
 async function init() {
-  const r = await fetch("/api/state");
+  const r = await fetch("api/state");
   const s = await r.json();
   STATE.photos = s.photos; STATE.dims = s.dims;
   STATE.prefill = s.prefill; STATE.existing = s.existing;
@@ -128,7 +128,7 @@ function renderTrack() {
 function selectPhoto(i) {
   STATE.idx = i; STATE.activeDim = 0;
   const name = STATE.photos[i];
-  document.getElementById("main-img").src = "/photos/" + name;
+  document.getElementById("main-img").src = "photos/" + name;
   document.getElementById("filename").textContent = name;
   // 初值优先级:已存在标注 > prefill > 5.0
   STATE.scores = {};
@@ -167,7 +167,7 @@ function quickSet(dim, n) { STATE.scores[dim] = n; renderDims(); }
 
 async function save() {
   const name = STATE.photos[STATE.idx];
-  const r = await fetch("/api/annotate", {
+  const r = await fetch("api/annotate", {
     method:"POST", headers:{"Content-Type":"application/json"},
     body: JSON.stringify({ image: name, scores: STATE.scores }),
   });

@@ -9,11 +9,33 @@
 from __future__ import annotations
 
 import json
+import os
 import re
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
+from urllib.parse import parse_qs, unquote, urlparse
+
+
+# 鉴权(线上部署用):cookie traillens_user_email 必须在白名单
+# 本地启动时把 ANNOTATION_ALLOWED_EMAILS 留空 = 不验证(任何人可访问)
+_ALLOWED = {
+    e.strip().lower()
+    for e in os.environ.get("ANNOTATION_ALLOWED_EMAILS", "").split(",")
+    if e.strip()
+}
+
+
+def _is_authorized(headers) -> bool:
+    if not _ALLOWED:
+        return True  # 本地 dev
+    cookie = headers.get("Cookie", "") or ""
+    for part in cookie.split(";"):
+        part = part.strip()
+        if part.startswith("traillens_user_email="):
+            email = unquote(part[len("traillens_user_email="):]).lower()
+            return email in _ALLOWED
+    return False
 
 ROOT = Path(__file__).resolve().parents[1]
 PHOTOS = ROOT / "photos"
@@ -66,6 +88,10 @@ class Handler(BaseHTTPRequestHandler):
         return
 
     def do_GET(self):
+        if not _is_authorized(self.headers):
+            self._send(403, "text/plain; charset=utf-8",
+                       "需用授权邮箱登录后访问。回首页 https://traillens.zorotreeking.online".encode())
+            return
         u = urlparse(self.path)
         if u.path == "/" or u.path == "/index.html":
             self._send(200, "text/html; charset=utf-8", (ROOT / "static/index.html").read_bytes())
@@ -96,6 +122,9 @@ class Handler(BaseHTTPRequestHandler):
             self._send(404, "text/plain", b"404")
 
     def do_POST(self):
+        if not _is_authorized(self.headers):
+            self._send(403, "text/plain", b"forbidden")
+            return
         if self.path != "/api/annotate":
             self._send(404, "text/plain", b"404")
             return
@@ -126,8 +155,11 @@ class Handler(BaseHTTPRequestHandler):
 
 
 if __name__ == "__main__":
+    port = int(os.environ.get("PORT", "5555"))
+    host = os.environ.get("HOST", "127.0.0.1")
     print(f"→ photos dir : {PHOTOS}")
     print(f"→ data dir   : {DATA}")
     print(f"→ annotations: {ANNOT_FILE}")
-    print(f"→ open       : http://localhost:5555")
-    ThreadingHTTPServer(("127.0.0.1", 5555), Handler).serve_forever()
+    print(f"→ allowed    : {sorted(_ALLOWED) if _ALLOWED else '(local: no auth)'}")
+    print(f"→ open       : http://{host}:{port}")
+    ThreadingHTTPServer((host, port), Handler).serve_forever()

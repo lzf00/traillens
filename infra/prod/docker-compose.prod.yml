@@ -105,6 +105,23 @@ services:
     ports:
       - "127.0.0.1:3000:3000"   # 仅本机暴露,host nginx 反代
 
+  # 人工标注工具(LoRA 训练数据集) — 极简 stdlib http.server
+  # 子路径 /annotate/ 反代,只允许 ANNOTATION_ALLOWED_EMAILS 名单内邮箱
+  annotation:
+    build:
+      context: ../../
+      dockerfile: packages/annotation/Dockerfile
+    container_name: traillens-annotation
+    restart: unless-stopped
+    environment:
+      PORT: 5555
+      HOST: 0.0.0.0
+      ANNOTATION_ALLOWED_EMAILS: ${ANNOTATION_ALLOWED_EMAILS:-}
+    ports:
+      - "127.0.0.1:5555:5555"
+    volumes:
+      - traillens_annotation_data:/app/data
+
   caddy:
     image: caddy:2-alpine
     container_name: traillens-caddy
@@ -143,5 +160,6 @@ services:
 volumes:
   traillens_pg_data:
   traillens_redis_data:
+  traillens_annotation_data:
   traillens_caddy_data:
   traillens_caddy_config:
