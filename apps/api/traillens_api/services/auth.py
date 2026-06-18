@@ -134,6 +134,11 @@ def sign_in(email: str, password: str) -> dict:
 def get_user(user_id: str) -> dict | None:
     if not db.has_db():
         return None
+    # 非 UUID 格式(dev fallback "dev-user-001" 之类)直接返回 None
+    try:
+        uuid.UUID(user_id)
+    except (ValueError, TypeError):
+        return None
     sql = _text("""
         SELECT id, email, name, plan, quota_remaining
         FROM users WHERE id = :uid
