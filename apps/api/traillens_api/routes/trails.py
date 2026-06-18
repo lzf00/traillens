@@ -162,6 +162,8 @@ async def upload_photos(
     check_quota(user, requested=len(files))
 
     from ..schemas import PhotoIn
+    from ..services.exif import extract_exif_from_bytes
+
     photos: list[PhotoIn] = []
     failed = []
     for f in files:
@@ -175,7 +177,9 @@ async def upload_photos(
         if not uri:
             failed.append(f.filename)
             continue
-        photos.append(PhotoIn(uri=uri))
+        # 上传时一次性解析 EXIF 入库,Run 时不需要再下载 COS
+        exif = extract_exif_from_bytes(data)
+        photos.append(PhotoIn(uri=uri, exif=exif or None))
 
     accepted = store.add_photos(trail_id, user_id=user.id, photos=photos)
     return {

@@ -1,15 +1,22 @@
-"""/v1/library — 跨 trail 的语义搜索 + 标签 / 时间筛选。
+"""/v1/library — 跨 trail 的搜索。
 
-Sprint 5 末:用 pgvector 真实查询;当前 stub 走 in-memory store + 简单关键词。
+当前(MVP):走 PG ILIKE 三路 OR 匹配
+  · photos.critique (AI 点评)
+  · trails.name + trails.location_name
+  · trails.travelogue_md (游记)
+得分=命中字段数/3,粗排但比 stub 实用。
+
+Sprint 5 末:接 pgvector + Doubao/BGE-M3 embedding 做真语义。
 """
 
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
+from sqlalchemy import text
 
 from ..deps import CurrentUser, get_current_user
-from ..services import store
+from ..services import db, store
 
 router = APIRouter()
 
@@ -19,28 +26,55 @@ class SearchResult(BaseModel):
     trail_id: str
     trail_name: str
     uri: str
-    score: float  # 相似度 0-1
+    verdict: str | None = None
+    overall: float | None = None
+    score: float  # 0-1,目前 = 命中字段数 / 3
 
 
 @router.get("/search", response_model=list[SearchResult])
 def search(
-    q: str = Query(..., min_length=1, description="自然语言查询,如:川西秋天逆光人像"),
+    q: str = Query(..., min_length=1, description="自然语言查询,如:川西秋天逆光"),
     limit: int = Query(20, ge=1, le=100),
     user: CurrentUser = Depends(get_current_user),
 ) -> list[SearchResult]:
-    """语义搜索用户照片。
-
-    Sprint 5 接 pgvector:
-      1. 把 q 用 BGE-M3 / SigLIP-text 转 embedding(768d)
-      2. SELECT ... ORDER BY embedding <=> :q_vec LIMIT N
-      3. 按 trail + verdict=keep 过滤
-
-    当前 stub:返回 user 名下所有 trail 的 keep 照片,按 trail name 含 q 排序。
-    """
-    # TODO Sprint 5: 真实 pgvector 查询
-    out: list[SearchResult] = []
-    # in-memory store 没暴露 list_user_trails;这里给个最小可工作版本
-    return out
+    if not db.has_db():
+        return []
+    like = f"%{q.strip()}%"
+    sql = text("""
+        SELECT
+            p.id, p.uri, p.verdict, p.aesthetic,
+            t.id AS trail_id, t.name AS trail_name,
+            (
+              (CASE WHEN p.critique ILIKE :like THEN 1 ELSE 0 END)
+            + (CASE WHEN t.name ILIKE :like OR coalesce(t.location_name,'') ILIKE :like THEN 1 ELSE 0 END)
+            + (CASE WHEN coalesce(t.travelogue_md,'') ILIKE :like THEN 1 ELSE 0 END)
+            )::float / 3.0 AS score
+        FROM photos p
+        JOIN trails t ON t.id = p.trail_id
+        WHERE t.user_id = :uid
+          AND (
+              p.critique ILIKE :like
+              OR t.name ILIKE :like
+              OR coalesce(t.location_name, '') ILIKE :like
+              OR coalesce(t.travelogue_md, '') ILIKE :like
+          )
+        ORDER BY score DESC, p.created_at DESC
+        LIMIT :lim
+    """)
+    with db.session() as s:
+        rows = s.execute(sql, dict(like=like, uid=user.id, lim=limit)).all()
+    return [
+        SearchResult(
+            photo_id=str(r.id),
+            trail_id=str(r.trail_id),
+            trail_name=r.trail_name,
+            uri=r.uri,
+            verdict=r.verdict,
+            overall=(r.aesthetic or {}).get("overall") if isinstance(r.aesthetic, dict) else None,
+            score=float(r.score),
+        )
+        for r in rows
+    ]
 
 
 @router.post("/embed/{trail_id}")
@@ -48,10 +82,6 @@ def reembed_trail(
     trail_id: str,
     user: CurrentUser = Depends(get_current_user),
 ) -> dict:
-    """触发对单 trail 所有照片重新生成 embedding。
-
-    Sprint 5 末:从 R2 拉图 → BGE-M3 / SigLIP 编码 → 写 photos.embedding 列。
-    当前 stub:返回排队信息。
-    """
+    """Sprint 5 末:接 BGE-M3 / Doubao Embedding,写 photos.embedding 列。"""
     photos = store.list_photos(trail_id, user_id=user.id)
-    return {"trail_id": trail_id, "queued": len(photos), "status": "stub"}
+    return {"trail_id": trail_id, "queued": len(photos), "status": "pending_embedding_model"}

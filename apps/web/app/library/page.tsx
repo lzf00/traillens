@@ -6,16 +6,19 @@
 
 import { useEffect, useState } from "react";
 import { Search } from "lucide-react";
+import { apiFetch } from "@/lib/api";
 
 type Hit = {
   photo_id: string;
   trail_id: string;
   trail_name: string;
   uri: string;
+  verdict?: string | null;
+  overall?: number | null;
   score: number;
 };
 
-const EXAMPLES = ["秋天 川西 逆光", "冰川 蓝时刻 长曝", "草原 三分法 黄昏"];
+const EXAMPLES = ["雅拉", "雪山", "构图", "技术", "焦段"];
 
 export default function LibraryPage() {
   const [q, setQ] = useState("");
@@ -26,7 +29,7 @@ export default function LibraryPage() {
     if (!q.trim()) return;
     const handle = setTimeout(async () => {
       setLoading(true);
-      const r = await fetch(`/v1/library/search?q=${encodeURIComponent(q)}&limit=30`);
+      const r = await apiFetch(`/v1/library/search?q=${encodeURIComponent(q)}&limit=30`);
       if (r.ok) setHits(await r.json());
       setLoading(false);
     }, 300);
@@ -76,14 +79,28 @@ export default function LibraryPage() {
         {hits.map((h) => (
           <a
             key={h.photo_id}
-            href={`/app/trails/${h.trail_id}`}
-            className="photo-frame aspect-square bg-bg-overlay relative group"
+            href={`/trails/${h.trail_id}`}
+            className="photo-frame aspect-square bg-bg-overlay relative group block overflow-hidden"
           >
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={h.uri} alt="" loading="lazy" className="h-full w-full object-cover" />
-            <div className="absolute inset-x-2 bottom-2 flex justify-between opacity-0 group-hover:opacity-100 transition-opacity">
-              <span className="status-pill">{h.trail_name}</span>
-              <span className="status-pill text-accent-aurora">{h.score.toFixed(2)}</span>
+            <img
+              src={h.uri}
+              alt=""
+              loading="lazy"
+              className="h-full w-full object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.03]"
+            />
+            {h.verdict && (
+              <span className="absolute top-2 left-2 status-pill backdrop-blur text-xs">
+                {h.verdict}
+              </span>
+            )}
+            <div className="absolute inset-x-2 bottom-2 flex justify-between gap-2">
+              <span className="status-pill backdrop-blur truncate text-xs">
+                {h.trail_name}
+              </span>
+              <span className="status-pill backdrop-blur text-accent-aurora text-xs shrink-0">
+                {h.overall != null ? h.overall.toFixed(1) : (h.score * 100).toFixed(0) + "%"}
+              </span>
             </div>
           </a>
         ))}

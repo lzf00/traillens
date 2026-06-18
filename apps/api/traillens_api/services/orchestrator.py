@@ -38,10 +38,12 @@ def _sse_and_log(run_id: str, event: str, data: dict) -> str:
 def _build_initial_state(trail_id: str, run_id: str, user_id: str | None = None) -> GraphState:
     """从真实 store 读 trail 的 photos 构造 GraphState。
 
+    优先用 DB 里上传时解析好的真 EXIF;没有时 fallback 到 stub random EXIF。
     没有用户上下文时(单测/CLI)fallback 到 sample photos。
     """
-    from . import store as _store
-    from traillens_agents.state.schema import Photo as _Photo  # noqa: WPS433
+    from . import store as _store, db as _db
+    from sqlalchemy import text as _sa_text
+    from traillens_agents.state.schema import Photo as _Photo, ExifMeta as _ExifMeta  # noqa: WPS433
 
     photos = []
     trail_name = None
@@ -50,17 +52,22 @@ def _build_initial_state(trail_id: str, run_id: str, user_id: str | None = None)
             trail = _store.get_trail(trail_id, user_id=user_id)
             if trail:
                 trail_name = trail.name
-                ph_rows = _store.list_photos(trail_id, user_id=user_id)
-                photos = [
-                    _Photo(
-                        photo_id=p.photo_id,
-                        uri=p.uri,
-                        # exif 默认 stub(随机焦段),避免 culling/critic 卡空字段
-                        # 真 EXIF 解析等 packages/mcp_servers/exif_server.py 接通
-                        exif=clients.read_exif(p.uri),
-                    )
-                    for p in ph_rows
-                ]
+                # 直读 DB:含 exif jsonb,避免双重转换
+                with _db.session() as s:
+                    rows = s.execute(_sa_text("""
+                        SELECT id, uri, exif FROM photos
+                        WHERE trail_id = :tid ORDER BY created_at
+                    """), dict(tid=trail_id)).all()
+                for r in rows:
+                    exif_dict = r.exif if isinstance(r.exif, dict) else {}
+                    if exif_dict:
+                        # 真 EXIF — 构造 ExifMeta,缺字段用 None
+                        exif = _ExifMeta(**{k: v for k, v in exif_dict.items()
+                                            if k in _ExifMeta.model_fields})
+                    else:
+                        # 无真 EXIF,fallback 到 random stub(culling/critic 别炸)
+                        exif = clients.read_exif(r.uri)
+                    photos.append(_Photo(photo_id=str(r.id), uri=r.uri, exif=exif))
         except Exception:  # noqa: BLE001 — 单测 / 离线场景
             photos = []
     if not photos:

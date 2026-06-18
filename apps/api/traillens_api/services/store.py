@@ -280,10 +280,16 @@ def _db_list_trails(*, user_id, limit):
 def _db_add_photos(trail_id, *, user_id, photos):
     if not _db_get_trail(trail_id, user_id=user_id):
         return 0
-    sql = _text("INSERT INTO photos (trail_id, uri) VALUES (:tid, :uri)")
+    sql = _text("""
+        INSERT INTO photos (trail_id, uri, exif)
+        VALUES (:tid, :uri, CAST(:exif AS jsonb))
+    """)
     with db.session() as s:
         for p in photos:
-            s.execute(sql, dict(tid=trail_id, uri=p.uri))
+            s.execute(sql, dict(
+                tid=trail_id, uri=p.uri,
+                exif=json.dumps(p.exif) if p.exif else None,
+            ))
         return len(photos)
 
 
