@@ -109,30 +109,6 @@ def search(
     ]
 
 
-@router.post("/embed/{trail_id}")
-def reembed_trail(
-    trail_id: str,
-    user: CurrentUser = Depends(get_current_user),
-) -> dict:
-    """对该 trail 所有有 critique 的照片重算 embedding 入库。"""
-    from ..services.embedding import embed_batch
-    photos = store.list_photos(trail_id, user_id=user.id)
-    targets = [p for p in photos if p.critique]
-    if not targets:
-        return {"trail_id": trail_id, "embedded": 0, "skipped": len(photos)}
-    vecs = embed_batch([p.critique for p in targets])
-    written = 0
-    for p, v in zip(targets, vecs):
-        if v:
-            store.write_photo_embedding(p.photo_id, v)
-            written += 1
-    return {
-        "trail_id": trail_id,
-        "embedded": written,
-        "skipped": len(photos) - written,
-    }
-
-
 @router.post("/embed/all")
 def reembed_all(user: CurrentUser = Depends(get_current_user)) -> dict:
     """对该用户所有有 critique 的照片重算 embedding(MVP 后台脚本式)。"""
@@ -153,3 +129,27 @@ def reembed_all(user: CurrentUser = Depends(get_current_user)) -> dict:
             store.write_photo_embedding(str(r.id), v)
             written += 1
     return {"embedded": written, "skipped": len(rows) - written}
+
+
+@router.post("/embed/{trail_id}")
+def reembed_trail(
+    trail_id: str,
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """对单个 trail 的所有 critique 照片重算 embedding。"""
+    from ..services.embedding import embed_batch
+    photos = store.list_photos(trail_id, user_id=user.id)
+    targets = [p for p in photos if p.critique]
+    if not targets:
+        return {"trail_id": trail_id, "embedded": 0, "skipped": len(photos)}
+    vecs = embed_batch([p.critique for p in targets])
+    written = 0
+    for p, v in zip(targets, vecs):
+        if v:
+            store.write_photo_embedding(p.photo_id, v)
+            written += 1
+    return {
+        "trail_id": trail_id,
+        "embedded": written,
+        "skipped": len(photos) - written,
+    }
