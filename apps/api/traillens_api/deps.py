@@ -43,25 +43,41 @@ def get_current_user(
     request: Request,
     authorization: str | None = Header(default=None),
 ) -> CurrentUser:
-    """生产期(env TRAILLENS_ENV=prod):必须有合法的 Bearer/cookie session。
-    开发期:fallback 到 dev_user(支持 X-Dev-User-Id 覆盖)。
+    """优先验 traillens_session(JWT cookie / Bearer);
+    无 token 且 env=local → dev_user fallback(X-Dev-User-Id 仍可用,便于本地测试)。
     """
     env = os.environ.get("TRAILLENS_ENV", "local")
-    if env == "local":
-        return _dev_user(request)
 
-    # ---- 生产路径:验 Bearer token / cookie session ----
+    # ---- 真 session token ----
     token = None
     if authorization and authorization.lower().startswith("bearer "):
         token = authorization[7:]
     else:
-        token = request.cookies.get("better-auth.session")
-    if not token:
-        raise HTTPException(401, "missing_session")
+        token = request.cookies.get("traillens_session")
 
-    # [TODO] Sprint 5: 用 Better-Auth 的 verify_session_token(token, secret) 解出 user
-    # 当前:把 token 简单当 user_id(避免开发期 hang)
-    return CurrentUser(id=token[:32], email="prod@stub", plan="free", quota_remaining=50)
+    if token:
+        try:
+            from .services import auth as _auth_svc
+            payload = _auth_svc.verify_session_token(token)
+        except Exception:  # noqa: BLE001 — secret 缺 / lib 缺装
+            payload = None
+        if payload:
+            info = _auth_svc.get_user(payload["sub"])
+            if info:
+                return CurrentUser(
+                    id=info["user_id"],
+                    email=info["email"],
+                    plan=info["plan"],
+                    quota_remaining=info["quota_remaining"],
+                )
+        # token 存在但无效 → prod 直接 401;local 继续 fallback
+        if env == "prod":
+            raise HTTPException(401, "invalid_session")
+
+    if env == "local":
+        return _dev_user(request)
+
+    raise HTTPException(401, "missing_session")
 
 
 def check_quota(user: CurrentUser, requested: int) -> None:

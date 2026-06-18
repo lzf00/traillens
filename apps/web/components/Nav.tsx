@@ -1,19 +1,30 @@
 /**
- * 顶部全局导航。
- * - logo 跳 /
- * - 主链接：Trails / Library / Settings
- * - 右侧：已登录显示 email + 登出；未登录显示 登录
+ * 顶部全局导航 — SSR 调 /v1/auth/me 判断登录态。
  *
- * 当前认证：dev 桥 — cookie `traillens_user_email` 写入即视为已登录
- * （Sprint 5 末换 Better Auth 真签）
+ * 走 cookie(traillens_session,HttpOnly) → 后端 deps.get_current_user 解码 JWT
  */
 
 import Link from "next/link";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+
+async function fetchMe(): Promise<{ email: string; name: string | null } | null> {
+  const base = process.env.TRAILLENS_API_INTERNAL_BASE || process.env.NEXT_PUBLIC_API_BASE || "";
+  const c = await cookies();
+  const cookieHeader = c.getAll().map((x) => `${x.name}=${x.value}`).join("; ");
+  try {
+    const r = await fetch(`${base}/v1/auth/me`, {
+      headers: { Cookie: cookieHeader },
+      cache: "no-store",
+    });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
+}
 
 export async function Nav() {
-  const c = await cookies();
-  const email = c.get("traillens_user_email")?.value;
+  const me = await fetchMe();
 
   return (
     <nav className="flex items-center justify-between border-b border-divider px-6 py-3">
@@ -34,10 +45,10 @@ export async function Nav() {
       </div>
 
       <div className="flex items-center gap-3 text-sm">
-        {email ? (
+        {me ? (
           <>
-            <span className="mono text-xs text-fg-tertiary">{email}</span>
-            <form action="/api/auth/sign-out" method="POST">
+            <span className="mono text-xs text-fg-tertiary">{me.email}</span>
+            <form action="/v1/auth/sign-out" method="POST">
               <button
                 type="submit"
                 className="text-fg-secondary hover:text-accent-aurora transition-colors"
@@ -47,12 +58,20 @@ export async function Nav() {
             </form>
           </>
         ) : (
-          <Link
-            href="/login"
-            className="rounded-md bg-accent-aurora px-3 py-1.5 text-xs font-medium text-bg-base hover:bg-accent-aurora/90"
-          >
-            登录
-          </Link>
+          <>
+            <Link
+              href="/login"
+              className="text-fg-secondary hover:text-fg-primary transition-colors"
+            >
+              登录
+            </Link>
+            <Link
+              href="/signup"
+              className="rounded-md bg-accent-aurora px-3 py-1.5 text-xs font-medium text-bg-base hover:bg-accent-aurora/90"
+            >
+              注册
+            </Link>
+          </>
         )}
       </div>
     </nav>
