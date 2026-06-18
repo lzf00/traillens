@@ -13,6 +13,15 @@ from typing import Iterable
 
 DIM = 768  # 对齐 photos.embedding vector(768)
 _DEFAULT_MODEL = "doubao-embedding-text-240715"
+# Doubao 模型 dimensions 参数实际被忽略,返回完整 2560d;
+# 我们截断到 DIM 再 L2-normalize(精度损失小,常规做法)
+
+
+def _truncate_normalize(vec):
+    import math
+    v = vec[:DIM] if len(vec) > DIM else vec + [0.0] * (DIM - len(vec))
+    s = math.sqrt(sum(x * x for x in v)) or 1.0
+    return [x / s for x in v]
 
 
 def _client():
@@ -40,8 +49,8 @@ def embed_text(text: str) -> list[float] | None:
         return None
     model = os.environ.get("DOUBAO_MODEL_EMBED", _DEFAULT_MODEL)
     try:
-        resp = c.embeddings.create(model=model, input=text.strip(), dimensions=DIM)
-        return list(resp.data[0].embedding)
+        resp = c.embeddings.create(model=model, input=text.strip())
+        return _truncate_normalize(list(resp.data[0].embedding))
     except Exception:  # noqa: BLE001
         return None
 
@@ -60,11 +69,10 @@ def embed_batch(texts: Iterable[str]) -> list[list[float] | None]:
         resp = c.embeddings.create(
             model=model,
             input=[items[i] for i in nonempty_idx],
-            dimensions=DIM,
         )
         vecs: list[list[float] | None] = [None] * len(items)
         for src, d in zip(nonempty_idx, resp.data):
-            vecs[src] = list(d.embedding)
+            vecs[src] = _truncate_normalize(list(d.embedding))
         return vecs
     except Exception:  # noqa: BLE001
         return [None] * len(items)
