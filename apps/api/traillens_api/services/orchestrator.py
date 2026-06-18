@@ -166,12 +166,21 @@ async def _via_langgraph(trail_id: str, run_id: str, user_id: str | None = None)
         # 持久化分数 + 游记 + 计划到 DB
         try:
             from . import store
+            from .embedding import embed_batch
             store.persist_run_results(
                 trail_id,
                 last_state.photos,
                 travelogue_md=last_state.travelogue_md,
                 next_trip_plan=last_state.next_trip_plan,
             )
+            # 一并把 critique 文本 embedding 写回 photos.embedding,供 Library 语义搜索
+            scored = [p for p in last_state.photos if p.critique]
+            if scored:
+                vecs = embed_batch([p.critique for p in scored])
+                for p, v in zip(scored, vecs):
+                    if v:
+                        # photo_id 是 sample 时不是 DB 行 id;真照片 photo_id == DB id
+                        store.write_photo_embedding(p.photo_id, v)
         except Exception as e:  # noqa: BLE001
             yield _sse("run.error", {"phase": "persist", "error": str(e)})
         if last_state.travelogue_md:
@@ -223,12 +232,19 @@ async def _via_fallback(trail_id: str, run_id: str, user_id: str | None = None) 
     # 持久化到 DB
     try:
         from . import store
+        from .embedding import embed_batch
         store.persist_run_results(
             trail_id,
             final.photos,
             travelogue_md=final.travelogue_md,
             next_trip_plan=final.next_trip_plan,
         )
+        scored = [p for p in final.photos if p.critique]
+        if scored:
+            vecs = embed_batch([p.critique for p in scored])
+            for p, v in zip(scored, vecs):
+                if v:
+                    store.write_photo_embedding(p.photo_id, v)
     except Exception as e:  # noqa: BLE001
         yield _sse("run.error", {"phase": "persist", "error": str(e)})
 

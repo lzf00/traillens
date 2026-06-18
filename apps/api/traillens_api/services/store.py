@@ -361,6 +361,19 @@ def _db_delete_trail(trail_id, *, user_id):
     return uris
 
 
+def write_photo_embedding(photo_id: str, vec: list[float]) -> None:
+    """单张照片的 critique embedding 写回 photos.embedding。
+
+    pgvector 接受 '[0.1,0.2,...]' 字符串格式。
+    """
+    if not db.has_db() or not vec:
+        return
+    vec_str = "[" + ",".join(f"{x:.6f}" for x in vec) + "]"
+    sql = _text("UPDATE photos SET embedding = CAST(:v AS vector) WHERE id = :pid")
+    with db.session() as s:
+        s.execute(sql, dict(pid=photo_id, v=vec_str))
+
+
 def _db_persist_run(trail_id, photos, *, travelogue_md, next_trip_plan):
     upd_photo = _text("""
         UPDATE photos
