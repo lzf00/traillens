@@ -12,7 +12,10 @@
 
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { apiFetch } from "@/lib/api";
+
+// 分享页不需要登录,SSR 直接走 server-side 内网 URL,不走 apiFetch
+// (apiFetch 会调 cookies() 让 ISR 报错)
+const API = process.env.TRAILLENS_API_INTERNAL_BASE || process.env.NEXT_PUBLIC_API_BASE || "";
 
 // Next.js 15: dynamic route params are Promise-wrapped
 type PageProps = { params: Promise<{ id: string }> };
@@ -35,15 +38,23 @@ type Photo = {
 };
 
 async function fetchTrail(id: string): Promise<Trail | null> {
-  const r = await apiFetch(`/v1/trails/${id}/public`, { next: { revalidate: 60 } });
-  if (!r.ok) return null;
-  return r.json();
+  try {
+    const r = await fetch(`${API}/v1/trails/${id}/public`, { next: { revalidate: 60 } });
+    if (!r.ok) return null;
+    return r.json();
+  } catch {
+    return null;
+  }
 }
 
 async function fetchPhotos(id: string): Promise<Photo[]> {
-  const r = await apiFetch(`/v1/trails/${id}/photos/public`, { next: { revalidate: 60 } });
-  if (!r.ok) return [];
-  return r.json();
+  try {
+    const r = await fetch(`${API}/v1/trails/${id}/photos/public`, { next: { revalidate: 60 } });
+    if (!r.ok) return [];
+    return r.json();
+  } catch {
+    return [];
+  }
 }
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
