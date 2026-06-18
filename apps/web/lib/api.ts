@@ -1,12 +1,11 @@
 /**
- * 简单的 fetch wrapper —— SSR 和客户端通用。
+ * fetch wrapper — SSR 和客户端通用。
  *
- * - server-side（RSC / route handler）：从 next/headers cookies 读 user_id
- * - client-side：从 document.cookie 读 traillens_user_id（非 httpOnly）
- * - 都把 user_id 通过 X-Dev-User-Id header 传给后端
- *   后端 deps.py 在 TRAILLENS_ENV=local 时使用这个 header
+ * 认证策略:
+ * - client-side: 同域 fetch /v1/...,浏览器自动带 HttpOnly cookie(traillens_session)
+ * - server-side(RSC): 走 docker 内网 http://api:8000,需要显式透传 Cookie header
  *
- * Sprint 5 末换 Better Auth：替换为 Bearer token。
+ * 兼容 dev 桥旧 cookie(traillens_user_id) — 后端 local 模式仍接受 X-Dev-User-Id header
  */
 
 const CLIENT_API_BASE = process.env.NEXT_PUBLIC_API_BASE || "";
@@ -14,24 +13,21 @@ const SERVER_API_BASE =
   process.env.TRAILLENS_API_INTERNAL_BASE || process.env.NEXT_PUBLIC_API_BASE || "";
 const isServer = typeof window === "undefined";
 
-function readClientUserId(): string | null {
-  if (typeof document === "undefined") return null;
-  const m = document.cookie.match(/(?:^|;\s*)traillens_user_id=([^;]+)/);
-  return m ? decodeURIComponent(m[1]) : null;
-}
-
-export async function apiFetch(path: string, init?: RequestInit, userIdOverride?: string | null) {
+export async function apiFetch(path: string, init?: RequestInit) {
   const headers = new Headers(init?.headers);
-  let userId = userIdOverride ?? readClientUserId();
 
-  // server-side fallback：从 next/headers 读
-  if (!userId && typeof window === "undefined") {
+  // SSR: 把 next/headers 里的 cookies 全部透传给后端
+  if (isServer) {
     const { cookies } = await import("next/headers");
     const c = await cookies();
-    userId = c.get("traillens_user_id")?.value ?? null;
-  }
+    const cookieStr = c.getAll().map((x) => `${x.name}=${x.value}`).join("; ");
+    if (cookieStr) headers.set("Cookie", cookieStr);
 
-  if (userId) headers.set("X-Dev-User-Id", userId);
+    // 兼容旧 dev 桥
+    const uid = c.get("traillens_user_id")?.value;
+    if (uid) headers.set("X-Dev-User-Id", uid);
+  }
+  // client-side: 走同域 + credentials:include,浏览器自动带 cookie,无需手动操作
 
   const base = isServer ? SERVER_API_BASE : CLIENT_API_BASE;
   return fetch(base + path, { ...init, headers, credentials: "include" });

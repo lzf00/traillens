@@ -12,7 +12,8 @@ export const dynamic = "force-dynamic";
  */
 export default async function HomePage() {
   const c = await cookies();
-  const loggedIn = Boolean(c.get("traillens_user_id")?.value);
+  // traillens_session(真 auth) 或 traillens_user_id(老 dev 桥) 任一存在即视为登录
+  const loggedIn = Boolean(c.get("traillens_session")?.value || c.get("traillens_user_id")?.value);
   return (
     <main className="min-h-dvh px-6 py-24 md:px-12">
       <div className="mx-auto max-w-3xl">

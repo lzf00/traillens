@@ -9,7 +9,6 @@
 export const dynamic = "force-dynamic";
 
 import Link from "next/link";
-import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
 import { Plus } from "lucide-react";
@@ -24,9 +23,9 @@ type Trail = {
   updated_at: string;
 };
 
-async function fetchTrails(userId: string): Promise<Trail[]> {
+async function fetchTrails(): Promise<Trail[]> {
   try {
-    const r = await apiFetch("/v1/trails", { cache: "no-store" }, userId);
+    const r = await apiFetch("/v1/trails", { cache: "no-store" });
     if (!r.ok) return [];
     return r.json();
   } catch {
@@ -34,12 +33,14 @@ async function fetchTrails(userId: string): Promise<Trail[]> {
   }
 }
 
-export default async function TrailsPage() {
-  const c = await cookies();
-  const userId = c.get("traillens_user_id")?.value;
-  if (!userId) redirect("/login");
+async function isLoggedIn(): Promise<boolean> {
+  const r = await apiFetch("/v1/auth/me", { cache: "no-store" });
+  return r.ok;
+}
 
-  const trails = await fetchTrails(userId);
+export default async function TrailsPage() {
+  if (!(await isLoggedIn())) redirect("/login");
+  const trails = await fetchTrails();
 
   return (
     <main className="mx-auto max-w-5xl px-6 py-12">
