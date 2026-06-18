@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY apps/api/pyproject.toml ./
 RUN pip install --no-cache-dir --prefix=/install \
     -i https://mirrors.cloud.tencent.com/pypi/simple/ \
-    "fastapi>=0.110" "uvicorn[standard]>=0.27" "pydantic>=2.7" \
+    "fastapi>=0.110" "uvicorn[standard]>=0.27" "pydantic[email]>=2.7" \
     "python-multipart>=0.0.9" \
     "Pillow>=10.0" \
     "bcrypt>=4.0" "PyJWT>=2.8" \
