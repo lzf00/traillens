@@ -60,11 +60,50 @@ def list_trails(*, user_id: str, limit: int = 50) -> list[TrailOut]:
     return _mem_list_trails(user_id=user_id, limit=limit)
 
 
-def update_trail(trail_id: str, *, user_id: str, name: str | None = None,
-                 location_name: str | None = None) -> TrailOut | None:
+def update_trail(
+    trail_id: str,
+    *,
+    user_id: str,
+    name: str | None = None,
+    location_name: str | None = None,
+    travelogue_md: str | None = None,
+    next_trip_plan: dict | None = None,
+) -> TrailOut | None:
     if db.has_db():
-        return _db_update_trail(trail_id, user_id=user_id, name=name, location_name=location_name)
-    return _mem_update_trail(trail_id, user_id=user_id, name=name, location_name=location_name)
+        return _db_update_trail(
+            trail_id, user_id=user_id,
+            name=name, location_name=location_name,
+            travelogue_md=travelogue_md, next_trip_plan=next_trip_plan,
+        )
+    return _mem_update_trail(
+        trail_id, user_id=user_id,
+        name=name, location_name=location_name,
+        travelogue_md=travelogue_md, next_trip_plan=next_trip_plan,
+    )
+
+
+def update_photo(
+    trail_id: str,
+    photo_id: str,
+    *,
+    user_id: str,
+    verdict: str | None = None,
+    aesthetic: dict | None = None,
+    critique: str | None = None,
+) -> bool:
+    """改单张照片的 verdict / aesthetic / critique。返回是否找到。"""
+    if db.has_db():
+        return _db_update_photo(trail_id, photo_id, user_id=user_id,
+                                verdict=verdict, aesthetic=aesthetic, critique=critique)
+    return _mem_update_photo(trail_id, photo_id, user_id=user_id,
+                             verdict=verdict, aesthetic=aesthetic, critique=critique)
+
+
+def delete_photo(trail_id: str, photo_id: str, *, user_id: str) -> str | None:
+    """删单张照片,返回被删的 uri(供 caller 清 COS),不存在/无权返 None。"""
+    if db.has_db():
+        return _db_delete_photo(trail_id, photo_id, user_id=user_id)
+    return _mem_delete_photo(trail_id, photo_id, user_id=user_id)
 
 
 def delete_trail(trail_id: str, *, user_id: str) -> list[str]:
@@ -185,7 +224,8 @@ def _mem_list_trails(*, user_id, limit):
     return out[:limit]
 
 
-def _mem_update_trail(trail_id, *, user_id, name, location_name):
+def _mem_update_trail(trail_id, *, user_id, name, location_name,
+                       travelogue_md=None, next_trip_plan=None):
     trail = _TRAILS.get(trail_id)
     if not trail or trail.user_id != user_id:
         return None
@@ -193,8 +233,37 @@ def _mem_update_trail(trail_id, *, user_id, name, location_name):
         trail.name = name
     if location_name is not None:
         trail.location_name = location_name
+    if travelogue_md is not None:
+        trail.travelogue_md = travelogue_md
+    if next_trip_plan is not None:
+        trail.next_trip_plan = next_trip_plan
     trail.updated_at = _now()
     return trail
+
+
+def _mem_update_photo(trail_id, photo_id, *, user_id, verdict, aesthetic, critique):
+    trail = _mem_get_trail(trail_id, user_id=user_id)
+    if not trail:
+        return False
+    for p in _PHOTOS.get(trail_id, []):
+        if p.photo_id == photo_id:
+            if verdict is not None: p.verdict = verdict
+            if aesthetic is not None: p.aesthetic = aesthetic
+            if critique is not None: p.critique = critique
+            return True
+    return False
+
+
+def _mem_delete_photo(trail_id, photo_id, *, user_id):
+    trail = _mem_get_trail(trail_id, user_id=user_id)
+    if not trail:
+        return None
+    bucket = _PHOTOS.get(trail_id, [])
+    for i, p in enumerate(bucket):
+        if p.photo_id == photo_id:
+            bucket.pop(i)
+            return p.uri
+    return None
 
 
 def _mem_delete_trail(trail_id, *, user_id):
@@ -327,7 +396,8 @@ def _db_get_trail_public(trail_id):
         return _row_to_trail(row) if row else None
 
 
-def _db_update_trail(trail_id, *, user_id, name, location_name):
+def _db_update_trail(trail_id, *, user_id, name, location_name,
+                       travelogue_md=None, next_trip_plan=None):
     fields = []
     params = {"tid": trail_id, "uid": user_id}
     if name is not None:
@@ -336,6 +406,12 @@ def _db_update_trail(trail_id, *, user_id, name, location_name):
     if location_name is not None:
         fields.append("location_name = :loc")
         params["loc"] = location_name
+    if travelogue_md is not None:
+        fields.append("travelogue_md = :tg")
+        params["tg"] = travelogue_md
+    if next_trip_plan is not None:
+        fields.append("next_trip_plan = CAST(:plan AS jsonb)")
+        params["plan"] = json.dumps(next_trip_plan)
     if not fields:
         return _db_get_trail(trail_id, user_id=user_id)
     sql = _text(f"""
@@ -345,6 +421,47 @@ def _db_update_trail(trail_id, *, user_id, name, location_name):
     with db.session() as s:
         s.execute(sql, params)
     return _db_get_trail(trail_id, user_id=user_id)
+
+
+def _db_update_photo(trail_id, photo_id, *, user_id, verdict, aesthetic, critique):
+    # 先 check ownership(trail 属于该 user)
+    own = _text("SELECT 1 FROM trails WHERE id = :tid AND user_id = :uid")
+    upd_fields = []
+    params = {"pid": photo_id, "tid": trail_id, "uid": user_id}
+    if verdict is not None:
+        upd_fields.append("verdict = :v")
+        params["v"] = verdict
+    if aesthetic is not None:
+        upd_fields.append("aesthetic = CAST(:a AS jsonb)")
+        params["a"] = json.dumps(aesthetic)
+    if critique is not None:
+        upd_fields.append("critique = :c")
+        params["c"] = critique
+    if not upd_fields:
+        return False
+    sql = _text(f"""
+        UPDATE photos SET {', '.join(upd_fields)}
+        WHERE id = :pid AND trail_id = :tid
+    """)
+    with db.session() as s:
+        if not s.execute(own, dict(tid=trail_id, uid=user_id)).first():
+            return False
+        result = s.execute(sql, params)
+        return result.rowcount > 0
+
+
+def _db_delete_photo(trail_id, photo_id, *, user_id):
+    own = _text("SELECT 1 FROM trails WHERE id = :tid AND user_id = :uid")
+    fetch = _text("SELECT uri FROM photos WHERE id = :pid AND trail_id = :tid")
+    delete = _text("DELETE FROM photos WHERE id = :pid AND trail_id = :tid")
+    with db.session() as s:
+        if not s.execute(own, dict(tid=trail_id, uid=user_id)).first():
+            return None
+        row = s.execute(fetch, dict(pid=photo_id, tid=trail_id)).first()
+        if not row:
+            return None
+        s.execute(delete, dict(pid=photo_id, tid=trail_id))
+        return row.uri
 
 
 def _db_delete_trail(trail_id, *, user_id):

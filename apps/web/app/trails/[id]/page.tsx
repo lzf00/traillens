@@ -18,9 +18,10 @@ import { ThumbnailTrack, type ThumbnailItem } from "@/components/canvas/Thumbnai
 import { ScoreRadar } from "@/components/canvas/ScoreRadar";
 import { AgentTrace, type TraceEntry } from "@/components/agent/AgentTrace";
 import { Button } from "@/components/ui/Button";
+import { InlineEdit } from "@/components/ui/InlineEdit";
 import { apiFetch } from "@/lib/api";
 import { streamSse } from "@/lib/sse";
-import { Play, Square, MoreVertical, Pencil, Trash2 } from "lucide-react";
+import { Play, Square, MoreVertical, Pencil, Trash2, Plus, X, Check } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function TrailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -28,12 +29,77 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   // Next.js 15: params is now a Promise; use React.use() in client components
   const { id: trailId } = use(params);
   const [trailName, setTrailName] = useState<string>("");
+  const [locationName, setLocationName] = useState<string>("");
   const [travelogueMd, setTravelogueMd] = useState<string | null>(null);
   const [nextTripPlan, setNextTripPlan] = useState<Record<string, any> | null>(null);
   const [photos, setPhotos] = useState<ThumbnailItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [running, setRunning] = useState(false);
+
+  async function refetchPhotos() {
+    const r = await apiFetch(`/v1/trails/${trailId}/photos`);
+    if (!r.ok) return;
+    const arr: any[] = await r.json();
+    setPhotos(
+      arr.map(
+        (p) =>
+          ({
+            photo_id: p.photo_id,
+            uri: p.uri,
+            verdict: p.verdict,
+            overall: p.aesthetic?.overall,
+            aesthetic: p.aesthetic ?? null,
+            critique: p.critique ?? null,
+          }) as ThumbnailItem
+      )
+    );
+  }
+
+  async function patchTrail(patch: Record<string, any>) {
+    const r = await apiFetch(`/v1/trails/${trailId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (r.ok) {
+      const t = await r.json();
+      setTrailName(t.name);
+      setLocationName(t.location_name ?? "");
+      setTravelogueMd(t.travelogue_md ?? null);
+      setNextTripPlan(t.next_trip_plan ?? null);
+    }
+  }
+
+  async function patchPhoto(photoId: string, patch: Record<string, any>) {
+    const r = await apiFetch(`/v1/trails/${trailId}/photos/${photoId}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(patch),
+    });
+    if (r.ok) refetchPhotos();
+  }
+
+  async function deletePhoto(photoId: string) {
+    if (!confirm("删除这张照片?(同时清 COS 不可恢复)")) return;
+    const r = await apiFetch(`/v1/trails/${trailId}/photos/${photoId}`, {
+      method: "DELETE",
+    });
+    if (r.ok) {
+      setPhotos((prev) => prev.filter((p) => p.photo_id !== photoId));
+      if (selectedId === photoId) setSelectedId(null);
+    }
+  }
+
+  async function appendPhotos(files: FileList) {
+    const fd = new FormData();
+    for (const f of Array.from(files)) fd.append("files", f, f.name);
+    const r = await apiFetch(`/v1/trails/${trailId}/photos:upload`, {
+      method: "POST",
+      body: fd,
+    });
+    if (r.ok) refetchPhotos();
+  }
 
   // 首次进页面：拉 trail 详情 + 已有照片
   useEffect(() => {
@@ -48,6 +114,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
         if (tr.ok) {
           const t = await tr.json();
           setTrailName(t.name);
+          setLocationName(t.location_name ?? "");
           setTravelogueMd(t.travelogue_md ?? null);
           setNextTripPlan(t.next_trip_plan ?? null);
         }
@@ -190,9 +257,21 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
     <div className="flex h-dvh flex-col">
       {/* Header */}
       <header className="flex items-center justify-between border-b border-divider px-4 py-3">
-        <div className="flex items-center gap-3">
-          <span className="font-display text-lg">{trailName || `Trail · ${trailId.slice(0, 8)}`}</span>
-          <span className="status-pill">{photos.length} 张 · {trace.length} 事件</span>
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <InlineEdit
+            value={trailName || `Trail · ${trailId.slice(0, 8)}`}
+            onSave={(v) => v.trim() && patchTrail({ name: v.trim() })}
+            className="font-display text-lg text-fg-primary"
+            placeholder="Trail 名称"
+          />
+          <span className="text-fg-tertiary">·</span>
+          <InlineEdit
+            value={locationName}
+            onSave={(v) => patchTrail({ location_name: v.trim() || null })}
+            className="text-sm text-fg-secondary"
+            placeholder="加位置"
+          />
+          <span className="status-pill ml-2">{photos.length} 张 · {trace.length} 事件</span>
         </div>
         <div className="flex gap-2 items-center relative">
           <a
@@ -243,7 +322,13 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
 
       {/* Body */}
       <div className="flex flex-1 overflow-hidden">
-        <ThumbnailTrack items={photos} selectedId={selected?.photo_id} onSelect={setSelectedId} />
+        <ThumbnailTrack
+          items={photos}
+          selectedId={selected?.photo_id}
+          onSelect={setSelectedId}
+          onAppend={appendPhotos}
+          onDelete={deletePhoto}
+        />
 
         <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
           <div className="photo-frame relative flex h-[60vh] w-full max-w-3xl items-center justify-center overflow-hidden bg-bg-overlay">
@@ -255,11 +340,18 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
                   alt={selected.photo_id}
                   className="h-full w-full object-contain"
                 />
-                {selected.verdict && (
-                  <span className="absolute top-3 right-3 status-pill backdrop-blur capitalize">
-                    {selected.verdict}
-                  </span>
-                )}
+                <button
+                  onClick={() => {
+                    const order = ["keep", "review", "reject"] as const;
+                    const cur = (selected.verdict ?? "review") as typeof order[number];
+                    const next = order[(order.indexOf(cur) + 1) % order.length];
+                    patchPhoto(selected.photo_id, { verdict: next });
+                  }}
+                  className="absolute top-3 right-3 status-pill backdrop-blur capitalize cursor-pointer hover:ring-1 hover:ring-accent-aurora"
+                  title="点击切换 verdict (keep → review → reject)"
+                >
+                  {selected.verdict ?? "未判"}
+                </button>
                 {selected.overall != null && (
                   <span className="absolute bottom-3 right-3 status-pill backdrop-blur">
                     {selected.overall.toFixed(1)}
@@ -290,6 +382,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           trace={trace}
           travelogueMd={travelogueMd}
           nextTripPlan={nextTripPlan}
+          onSaveTravelogue={(md) => patchTrail({ travelogue_md: md })}
+          onSavePlan={(p) => patchTrail({ next_trip_plan: p })}
         />
       </div>
     </div>
@@ -300,10 +394,14 @@ function RightPanel({
   trace,
   travelogueMd,
   nextTripPlan,
+  onSaveTravelogue,
+  onSavePlan,
 }: {
   trace: TraceEntry[];
   travelogueMd: string | null;
   nextTripPlan: Record<string, any> | null;
+  onSaveTravelogue: (md: string) => void;
+  onSavePlan: (plan: Record<string, any>) => void;
 }) {
   const tabs = [
     { key: "trace" as const, label: `Trace · ${trace.length}` },
@@ -332,39 +430,160 @@ function RightPanel({
       <div className="flex-1 overflow-y-auto">
         {active === "trace" && <AgentTrace entries={trace} />}
         {active === "story" && (
-          <div className="p-4">
-            {travelogueMd ? (
-              <article className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-fg-primary">
-                {travelogueMd}
-              </article>
-            ) : (
-              <p className="mono text-fg-tertiary">游记会在 Run 跑完后生成。</p>
-            )}
-          </div>
+          <EditableMarkdown
+            value={travelogueMd}
+            placeholder="游记会在 Run 跑完后生成。"
+            onSave={onSaveTravelogue}
+          />
         )}
         {active === "plan" && (
-          <div className="p-4">
-            {nextTripPlan ? (
-              <dl className="flex flex-col gap-3 text-sm">
-                {Object.entries(nextTripPlan).map(([k, v]) => (
-                  <div key={k} className="flex flex-col gap-1">
-                    <dt className="mono text-fg-tertiary">{k}</dt>
-                    <dd className="text-fg-primary">
-                      {Array.isArray(v)
-                        ? v.map(String).join("、")
-                        : typeof v === "object" && v !== null
-                          ? JSON.stringify(v, null, 2)
-                          : String(v)}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            ) : (
-              <p className="mono text-fg-tertiary">下次拍摄计划会在 Run 跑完后生成。</p>
-            )}
-          </div>
+          <EditableJson
+            value={nextTripPlan}
+            placeholder="下次拍摄计划会在 Run 跑完后生成。"
+            onSave={onSavePlan}
+          />
         )}
       </div>
     </aside>
+  );
+}
+
+function EditableMarkdown({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: string | null;
+  placeholder: string;
+  onSave: (v: string) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(value ?? "");
+  useEffect(() => { if (!editing) setDraft(value ?? ""); }, [value, editing]);
+  if (!editing) {
+    return (
+      <div className="p-4">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs text-fg-tertiary hover:text-accent-aurora flex items-center gap-1"
+          >
+            <Pencil size={11} /> 编辑
+          </button>
+        </div>
+        {value ? (
+          <article className="prose prose-invert prose-sm max-w-none whitespace-pre-wrap text-fg-primary">
+            {value}
+          </article>
+        ) : (
+          <p className="mono text-fg-tertiary">{placeholder}</p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="p-4 flex flex-col gap-2 h-full">
+      <textarea
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="flex-1 min-h-[300px] rounded-md bg-bg-raised border border-divider p-3 text-sm text-fg-primary font-mono resize-none focus:outline-none focus:border-accent-aurora"
+        placeholder="markdown..."
+      />
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={() => { setEditing(false); setDraft(value ?? ""); }}
+          className="text-xs text-fg-secondary hover:text-fg-primary px-2 py-1"
+        >
+          取消
+        </button>
+        <button
+          onClick={() => { setEditing(false); onSave(draft); }}
+          className="text-xs bg-accent-aurora text-bg-base rounded px-3 py-1 hover:bg-accent-aurora/90"
+        >
+          保存
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function EditableJson({
+  value,
+  placeholder,
+  onSave,
+}: {
+  value: Record<string, any> | null;
+  placeholder: string;
+  onSave: (v: Record<string, any>) => void;
+}) {
+  const [editing, setEditing] = useState(false);
+  const [draft, setDraft] = useState(JSON.stringify(value ?? {}, null, 2));
+  const [err, setErr] = useState<string | null>(null);
+  useEffect(() => {
+    if (!editing) setDraft(JSON.stringify(value ?? {}, null, 2));
+  }, [value, editing]);
+
+  if (!editing) {
+    return (
+      <div className="p-4">
+        <div className="flex justify-end mb-2">
+          <button
+            onClick={() => setEditing(true)}
+            className="text-xs text-fg-tertiary hover:text-accent-aurora flex items-center gap-1"
+          >
+            <Pencil size={11} /> 编辑
+          </button>
+        </div>
+        {value ? (
+          <dl className="flex flex-col gap-3 text-sm">
+            {Object.entries(value).map(([k, v]) => (
+              <div key={k} className="flex flex-col gap-1">
+                <dt className="mono text-fg-tertiary">{k}</dt>
+                <dd className="text-fg-primary">
+                  {Array.isArray(v)
+                    ? v.map(String).join("、")
+                    : typeof v === "object" && v !== null
+                      ? JSON.stringify(v, null, 2)
+                      : String(v)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        ) : (
+          <p className="mono text-fg-tertiary">{placeholder}</p>
+        )}
+      </div>
+    );
+  }
+  return (
+    <div className="p-4 flex flex-col gap-2 h-full">
+      <textarea
+        value={draft}
+        onChange={(e) => { setDraft(e.target.value); setErr(null); }}
+        className="flex-1 min-h-[300px] rounded-md bg-bg-raised border border-divider p-3 text-xs text-fg-primary font-mono resize-none focus:outline-none focus:border-accent-aurora"
+      />
+      {err && <p className="text-xs text-accent-danger">JSON 解析错: {err}</p>}
+      <div className="flex gap-2 justify-end">
+        <button
+          onClick={() => { setEditing(false); setErr(null); setDraft(JSON.stringify(value ?? {}, null, 2)); }}
+          className="text-xs text-fg-secondary hover:text-fg-primary px-2 py-1"
+        >
+          取消
+        </button>
+        <button
+          onClick={() => {
+            try {
+              const parsed = JSON.parse(draft);
+              setEditing(false); setErr(null); onSave(parsed);
+            } catch (e: any) {
+              setErr(e.message);
+            }
+          }}
+          className="text-xs bg-accent-aurora text-bg-base rounded px-3 py-1 hover:bg-accent-aurora/90"
+        >
+          保存
+        </button>
+      </div>
+    </div>
   );
 }

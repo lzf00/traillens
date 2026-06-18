@@ -73,15 +73,50 @@ def update_trail(
     body: dict,
     user: CurrentUser = Depends(get_current_user),
 ) -> TrailOut:
-    """编辑 trail name / location_name(其他字段先不开放)。"""
+    """编辑 trail name / location / travelogue_md / next_trip_plan(任一字段可选)。"""
     trail = store.update_trail(
         trail_id, user_id=user.id,
         name=body.get("name"),
         location_name=body.get("location_name"),
+        travelogue_md=body.get("travelogue_md"),
+        next_trip_plan=body.get("next_trip_plan"),
     )
     if not trail:
         raise HTTPException(404, "trail_not_found")
     return trail
+
+
+@router.patch("/{trail_id}/photos/{photo_id}")
+def update_photo(
+    trail_id: str,
+    photo_id: str,
+    body: dict,
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """改单张照片 verdict / aesthetic / critique(手动 override AI)。"""
+    ok = store.update_photo(
+        trail_id, photo_id, user_id=user.id,
+        verdict=body.get("verdict"),
+        aesthetic=body.get("aesthetic"),
+        critique=body.get("critique"),
+    )
+    if not ok:
+        raise HTTPException(404, "photo_not_found")
+    return {"ok": True}
+
+
+@router.delete("/{trail_id}/photos/{photo_id}", status_code=204)
+def delete_photo(
+    trail_id: str,
+    photo_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """删单张照片(同步清 COS)。"""
+    uri = store.delete_photo(trail_id, photo_id, user_id=user.id)
+    if not uri:
+        raise HTTPException(404, "photo_not_found")
+    storage.delete_object_by_uri(uri)
+    return None
 
 
 @router.delete("/{trail_id}", status_code=204)
