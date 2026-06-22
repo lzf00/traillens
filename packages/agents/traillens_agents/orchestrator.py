@@ -61,7 +61,8 @@ def decide_next(state: GraphState) -> str:
     if state.travelogue_md is None:
         return "story"
 
-    if state.next_trip_plan is None and state.hike.gps_lat is not None:
+    # planner 总跑(无 GPS 时给通用建议,见 nodes/business.py::planner_node)
+    if state.next_trip_plan is None:
         return "planner"
 
     return "FINISH"
