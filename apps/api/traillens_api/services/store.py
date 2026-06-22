@@ -99,11 +99,13 @@ def update_photo(
                              verdict=verdict, aesthetic=aesthetic, critique=critique)
 
 
-def delete_photo(trail_id: str, photo_id: str, *, user_id: str) -> str | None:
-    """删单张照片,返回被删的 uri(供 caller 清 COS),不存在/无权返 None。"""
+def delete_photo(trail_id: str, photo_id: str, *, user_id: str) -> list[str]:
+    """删单张照片,返回被删的 uri 列表(原图 + 缩略图,供 caller 清 COS)。"""
     if db.has_db():
-        return _db_delete_photo(trail_id, photo_id, user_id=user_id)
-    return _mem_delete_photo(trail_id, photo_id, user_id=user_id)
+        out = _db_delete_photo(trail_id, photo_id, user_id=user_id)
+        return out or []
+    one = _mem_delete_photo(trail_id, photo_id, user_id=user_id)
+    return [one] if one else []
 
 
 def delete_trail(trail_id: str, *, user_id: str) -> list[str]:
@@ -331,7 +333,7 @@ def _db_list_trails(*, user_id, limit):
                t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
                (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count,
                (
-                 SELECT uri FROM photos
+                 SELECT COALESCE(thumb_uri, uri) FROM photos
                  WHERE trail_id = t.id
                  ORDER BY (verdict = 'keep') DESC NULLS LAST, created_at ASC
                  LIMIT 1
@@ -350,13 +352,13 @@ def _db_add_photos(trail_id, *, user_id, photos):
     if not _db_get_trail(trail_id, user_id=user_id):
         return 0
     sql = _text("""
-        INSERT INTO photos (trail_id, uri, exif)
-        VALUES (:tid, :uri, CAST(:exif AS jsonb))
+        INSERT INTO photos (trail_id, uri, thumb_uri, exif)
+        VALUES (:tid, :uri, :thumb, CAST(:exif AS jsonb))
     """)
     with db.session() as s:
         for p in photos:
             s.execute(sql, dict(
-                tid=trail_id, uri=p.uri,
+                tid=trail_id, uri=p.uri, thumb=getattr(p, "thumb_uri", None),
                 exif=json.dumps(p.exif) if p.exif else None,
             ))
         return len(photos)
@@ -370,13 +372,13 @@ def _db_list_photos(trail_id, *, user_id):
 
 def _db_list_photos_public(trail_id):
     sql = _text("""
-        SELECT id, uri, verdict, reject_reason, aesthetic, critique, decision_trace
+        SELECT id, uri, thumb_uri, verdict, reject_reason, aesthetic, critique, decision_trace
         FROM photos WHERE trail_id = :tid ORDER BY created_at
     """)
     with db.session() as s:
         rows = s.execute(sql, dict(tid=trail_id)).all()
         return [PhotoOut(
-            photo_id=str(r.id), uri=r.uri,
+            photo_id=str(r.id), uri=r.uri, thumb_uri=r.thumb_uri,
             verdict=r.verdict, reject_reason=r.reject_reason,
             aesthetic=r.aesthetic, critique=r.critique,
             decision_trace=r.decision_trace or [],
@@ -452,7 +454,7 @@ def _db_update_photo(trail_id, photo_id, *, user_id, verdict, aesthetic, critiqu
 
 def _db_delete_photo(trail_id, photo_id, *, user_id):
     own = _text("SELECT 1 FROM trails WHERE id = :tid AND user_id = :uid")
-    fetch = _text("SELECT uri FROM photos WHERE id = :pid AND trail_id = :tid")
+    fetch = _text("SELECT uri, thumb_uri FROM photos WHERE id = :pid AND trail_id = :tid")
     delete = _text("DELETE FROM photos WHERE id = :pid AND trail_id = :tid")
     with db.session() as s:
         if not s.execute(own, dict(tid=trail_id, uid=user_id)).first():
@@ -461,7 +463,8 @@ def _db_delete_photo(trail_id, photo_id, *, user_id):
         if not row:
             return None
         s.execute(delete, dict(pid=photo_id, tid=trail_id))
-        return row.uri
+        # 返回 (full_uri, thumb_uri) 让 caller 一并清
+        return [u for u in (row.uri, row.thumb_uri) if u]
 
 
 def _db_delete_trail(trail_id, *, user_id):

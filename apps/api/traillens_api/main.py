@@ -18,7 +18,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from . import __version__
-from .routes import auth as auth_route, billing, health, library, photos, settings as settings_route, trails
+from .routes import auth as auth_route, billing, health, library, oauth as oauth_route, photos, settings as settings_route, trails
 import os
 
 from .middleware.rate_limit import RateLimitMiddleware
@@ -76,6 +76,7 @@ app.add_middleware(
 
 app.include_router(health.router)
 app.include_router(auth_route.router, prefix="/v1/auth", tags=["auth"])
+app.include_router(oauth_route.router, prefix="/v1/auth", tags=["oauth"])
 app.include_router(trails.router, prefix="/v1/trails", tags=["trails"])
 app.include_router(photos.router, prefix="/v1/photos", tags=["photos"])
 app.include_router(billing.router, prefix="/v1/billing", tags=["billing"])

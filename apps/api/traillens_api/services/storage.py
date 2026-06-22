@@ -282,6 +282,26 @@ def delete_object_by_uri(uri: str) -> bool:
         return False
 
 
+def make_thumbnail(data: bytes, max_side: int = 300) -> bytes | None:
+    """生成最长边 max_side px 的 JPEG 缩略图;失败返 None。"""
+    try:
+        from PIL import Image  # type: ignore
+        import io
+        img = Image.open(io.BytesIO(data))
+        img = img.convert("RGB") if img.mode != "RGB" else img
+        w, h = img.size
+        if max(w, h) > max_side:
+            if w >= h:
+                img = img.resize((max_side, int(h * max_side / w)), Image.LANCZOS)
+            else:
+                img = img.resize((int(w * max_side / h), max_side), Image.LANCZOS)
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG", quality=80, optimize=True)
+        return buf.getvalue()
+    except Exception:  # noqa: BLE001
+        return None
+
+
 def put_object(key: str, data: bytes, content_type: str = "image/jpeg") -> str | None:
     """服务端代理上传(浏览器走不通 COS CORS 时的 fallback)。
 

@@ -92,6 +92,28 @@ export default function LoginPage() {
         </button>
       </form>
 
+      <div className="mt-6">
+        <div className="flex items-center gap-3 my-4">
+          <hr className="flex-1 border-divider" />
+          <span className="text-xs text-fg-tertiary">或</span>
+          <hr className="flex-1 border-divider" />
+        </div>
+        <div className="flex flex-col gap-2">
+          <a
+            href="/v1/auth/oauth/google/start"
+            className="rounded-md border border-divider px-4 py-2.5 text-sm text-center text-fg-primary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+          >
+            用 Google 登录
+          </a>
+          <a
+            href="/v1/auth/oauth/github/start"
+            className="rounded-md border border-divider px-4 py-2.5 text-sm text-center text-fg-primary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+          >
+            用 GitHub 登录
+          </a>
+        </div>
+      </div>
+
       <p className="mt-10 text-xs text-fg-tertiary">
         <Link href="/" className="hover:text-fg-secondary">
           ← 回首页

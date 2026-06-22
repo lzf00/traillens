@@ -111,11 +111,12 @@ def delete_photo(
     photo_id: str,
     user: CurrentUser = Depends(get_current_user),
 ):
-    """删单张照片(同步清 COS)。"""
-    uri = store.delete_photo(trail_id, photo_id, user_id=user.id)
-    if not uri:
+    """删单张照片(原图 + 缩略图同步清 COS)。"""
+    uris = store.delete_photo(trail_id, photo_id, user_id=user.id)
+    if not uris:
         raise HTTPException(404, "photo_not_found")
-    storage.delete_object_by_uri(uri)
+    for uri in uris:
+        storage.delete_object_by_uri(uri)
     return None
 
 
@@ -214,7 +215,13 @@ async def upload_photos(
             continue
         # 上传时一次性解析 EXIF 入库,Run 时不需要再下载 COS
         exif = extract_exif_from_bytes(data)
-        photos.append(PhotoIn(uri=uri, exif=exif or None))
+        # 同步生成 300px 缩略图(失败不阻断上传)
+        thumb_uri = None
+        thumb_bytes = storage.make_thumbnail(data, max_side=300)
+        if thumb_bytes:
+            thumb_key = key.rsplit(".", 1)[0] + "_thumb.jpg"
+            thumb_uri = storage.put_object(thumb_key, thumb_bytes, content_type="image/jpeg")
+        photos.append(PhotoIn(uri=uri, thumb_uri=thumb_uri, exif=exif or None))
 
     accepted = store.add_photos(trail_id, user_id=user.id, photos=photos)
     return {

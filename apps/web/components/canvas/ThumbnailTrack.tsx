@@ -18,6 +18,7 @@ export type AestheticScores = {
 export type ThumbnailItem = {
   photo_id: string;
   uri: string;
+  thumb_uri?: string | null;
   verdict?: "keep" | "reject" | "review" | null;
   overall?: number | null;
   aesthetic?: AestheticScores | null;
@@ -36,12 +37,16 @@ export function ThumbnailTrack({
   onSelect,
   onAppend,
   onDelete,
+  selectedIds,
+  onToggleMulti,
 }: {
   items: ThumbnailItem[];
   selectedId?: string | null;
   onSelect: (id: string) => void;
   onAppend?: (files: FileList) => void;
   onDelete?: (id: string) => void;
+  selectedIds?: Set<string>;
+  onToggleMulti?: (id: string) => void;
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   return (
@@ -73,6 +78,7 @@ export function ThumbnailTrack({
       </div>
       {items.map((it) => {
         const isSelected = it.photo_id === selectedId;
+        const isChecked = selectedIds?.has(it.photo_id) ?? false;
         return (
           <div
             key={it.photo_id}
@@ -80,8 +86,18 @@ export function ThumbnailTrack({
               "group relative flex items-center gap-2 rounded-md p-1.5",
               "transition-colors duration-DEFAULT ease-trail",
               isSelected ? "bg-bg-overlay ring-1 ring-accent-glacier" : "hover:bg-bg-raised",
+              isChecked && "ring-1 ring-accent-aurora",
             )}
           >
+            {onToggleMulti && (
+              <input
+                type="checkbox"
+                checked={isChecked}
+                onChange={() => onToggleMulti(it.photo_id)}
+                className="accent-accent-aurora cursor-pointer"
+                onClick={(e) => e.stopPropagation()}
+              />
+            )}
             <button
               onClick={() => onSelect(it.photo_id)}
               className="flex flex-1 items-center gap-2 text-left min-w-0"
@@ -90,7 +106,7 @@ export function ThumbnailTrack({
                 {it.uri ? (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={it.uri}
+                    src={it.thumb_uri || it.uri}
                     alt={it.photo_id}
                     loading="lazy"
                     className="h-full w-full object-cover"

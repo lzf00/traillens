@@ -16,6 +16,7 @@ class PhotoIn(BaseModel):
     """前端已经直传 R2 后,告诉后端 uri。"""
 
     uri: str
+    thumb_uri: str | None = None
     exif: dict[str, Any] | None = None  # 可选,前端已用 traillens-exif 解析过
 
 
@@ -26,6 +27,7 @@ class PhotoBulkIn(BaseModel):
 class PhotoOut(BaseModel):
     photo_id: str
     uri: str
+    thumb_uri: str | None = None
     verdict: str | None = None
     reject_reason: str | None = None
     aesthetic: dict[str, Any] | None = None

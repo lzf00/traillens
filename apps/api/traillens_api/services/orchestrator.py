@@ -70,13 +70,35 @@ def _build_initial_state(trail_id: str, run_id: str, user_id: str | None = None)
                     photos.append(_Photo(photo_id=str(r.id), uri=r.uri, exif=exif))
         except Exception:  # noqa: BLE001 — 单测 / 离线场景
             photos = []
+
+    # 从 photos.exif 聚合 GPS 填到 hike(取第一个有效 GPS) → planner 走真日月路径
+    gps_lat = None
+    gps_lon = None
+    for ph in photos:
+        if ph.exif.gps_lat is not None and ph.exif.gps_lon is not None:
+            gps_lat = ph.exif.gps_lat
+            gps_lon = ph.exif.gps_lon
+            break
+
     if not photos:
         photos = clients.load_sample_photos(8)
         trail_name = trail_name or "贡嘎环线"
+        # sample photos 的 read_exif stub 也填了随机 GPS,补一下
+        if gps_lat is None:
+            for ph in photos:
+                if ph.exif.gps_lat is not None and ph.exif.gps_lon is not None:
+                    gps_lat = ph.exif.gps_lat
+                    gps_lon = ph.exif.gps_lon
+                    break
 
     return GraphState(
         photos=photos,
-        hike=HikeContext(location_name=trail_name or "一次徒步", gpx_uri="sample://"),
+        hike=HikeContext(
+            location_name=trail_name or "一次徒步",
+            gpx_uri="sample://",
+            gps_lat=gps_lat,
+            gps_lon=gps_lon,
+        ),
         run_id=run_id,
     )
 

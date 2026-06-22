@@ -34,8 +34,42 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   const [nextTripPlan, setNextTripPlan] = useState<Record<string, any> | null>(null);
   const [photos, setPhotos] = useState<ThumbnailItem[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [running, setRunning] = useState(false);
+
+  function toggleMulti(id: string) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }
+
+  async function bulkVerdict(v: "keep" | "review" | "reject") {
+    if (selectedIds.size === 0) return;
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map((pid) =>
+      apiFetch(`/v1/trails/${trailId}/photos/${pid}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ verdict: v }),
+      })
+    ));
+    setSelectedIds(new Set());
+    refetchPhotos();
+  }
+
+  async function bulkDelete() {
+    if (selectedIds.size === 0) return;
+    if (!confirm(`删除选中的 ${selectedIds.size} 张?(同步清 COS,不可恢复)`)) return;
+    const ids = Array.from(selectedIds);
+    await Promise.all(ids.map((pid) =>
+      apiFetch(`/v1/trails/${trailId}/photos/${pid}`, { method: "DELETE" })
+    ));
+    setSelectedIds(new Set());
+    refetchPhotos();
+  }
 
   async function refetchPhotos() {
     const r = await apiFetch(`/v1/trails/${trailId}/photos`);
@@ -47,6 +81,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           ({
             photo_id: p.photo_id,
             uri: p.uri,
+            thumb_uri: p.thumb_uri ?? null,
             verdict: p.verdict,
             overall: p.aesthetic?.overall,
             aesthetic: p.aesthetic ?? null,
@@ -122,6 +157,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           const arr: Array<{
             photo_id: string;
             uri: string;
+            thumb_uri?: string;
             verdict?: string;
             aesthetic?: any;
             critique?: string;
@@ -132,6 +168,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
                 ({
                   photo_id: p.photo_id,
                   uri: p.uri,
+                  thumb_uri: p.thumb_uri ?? null,
                   verdict: p.verdict,
                   overall: p.aesthetic?.overall,
                   aesthetic: p.aesthetic ?? null,
@@ -189,29 +226,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
               setTravelogueMd(t.travelogue_md ?? null);
               setNextTripPlan(t.next_trip_plan ?? null);
             }
-            const r = await apiFetch(`/v1/trails/${trailId}/photos`);
-            if (r.ok) {
-              const arr: Array<{
-                photo_id: string;
-                uri: string;
-                verdict?: string;
-                aesthetic?: any;
-                critique?: string;
-              }> = await r.json();
-              setPhotos(
-                arr.map(
-                  (p) =>
-                    ({
-                      photo_id: p.photo_id,
-                      uri: p.uri,
-                      verdict: p.verdict,
-                      overall: p.aesthetic?.overall,
-                      aesthetic: p.aesthetic ?? null,
-                      critique: p.critique ?? null,
-                    }) as ThumbnailItem
-                )
-              );
-            }
+            await refetchPhotos();
           } catch {}
         }
       }
@@ -328,6 +343,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           onSelect={setSelectedId}
           onAppend={appendPhotos}
           onDelete={deletePhoto}
+          selectedIds={selectedIds}
+          onToggleMulti={toggleMulti}
         />
 
         <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
@@ -376,6 +393,45 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           <div className="mono">
             <kbd>j</kbd>/<kbd>k</kbd> 切换 · <kbd>?</kbd> 帮助
           </div>
+
+          {/* 批量操作浮条 */}
+          {selectedIds.size > 0 && (
+            <div className="fixed bottom-6 left-1/2 -translate-x-1/2 flex items-center gap-2 rounded-md border border-divider bg-bg-raised px-4 py-2 shadow-lg z-20">
+              <span className="text-sm text-fg-secondary mr-2">
+                已选 <strong className="text-accent-aurora">{selectedIds.size}</strong> 张
+              </span>
+              <button
+                onClick={() => bulkVerdict("keep")}
+                className="px-3 py-1 text-xs rounded bg-accent-aurora text-bg-base hover:bg-accent-aurora/90"
+              >
+                设为 Keep
+              </button>
+              <button
+                onClick={() => bulkVerdict("review")}
+                className="px-3 py-1 text-xs rounded bg-accent-golden text-bg-base hover:bg-accent-golden/90"
+              >
+                设为 Review
+              </button>
+              <button
+                onClick={() => bulkVerdict("reject")}
+                className="px-3 py-1 text-xs rounded bg-accent-danger text-bg-base hover:bg-accent-danger/90"
+              >
+                设为 Reject
+              </button>
+              <button
+                onClick={bulkDelete}
+                className="px-3 py-1 text-xs rounded border border-accent-danger text-accent-danger hover:bg-accent-danger/10"
+              >
+                批量删除
+              </button>
+              <button
+                onClick={() => setSelectedIds(new Set())}
+                className="ml-2 text-xs text-fg-tertiary hover:text-fg-secondary"
+              >
+                取消
+              </button>
+            </div>
+          )}
         </main>
 
         <RightPanel
