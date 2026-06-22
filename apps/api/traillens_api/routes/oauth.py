@@ -80,24 +80,45 @@ def oauth_callback(provider: str, code: str, state: str, request: Request, respo
     c = _cfg(provider)
 
     import httpx
-    token_resp = httpx.post(
-        c["token"],
-        data={
-            "client_id": c["client_id"],
-            "client_secret": c["client_secret"],
-            "code": code,
-            "redirect_uri": c["redirect_uri"],
-            "grant_type": "authorization_code",
-        },
-        headers={"Accept": "application/json"},
-        timeout=10,
-    )
+    # OAUTH_HTTP_PROXY=http://user:pass@host:port (国内服务器调海外 OAuth 必备)
+    proxy = os.environ.get("OAUTH_HTTP_PROXY") or os.environ.get("HTTPS_PROXY")
+    client_kwargs = {"timeout": 30.0}
+    if proxy:
+        client_kwargs["proxy"] = proxy
+
+    try:
+        with httpx.Client(**client_kwargs) as hc:
+            token_resp = hc.post(
+                c["token"],
+                data={
+                    "client_id": c["client_id"],
+                    "client_secret": c["client_secret"],
+                    "code": code,
+                    "redirect_uri": c["redirect_uri"],
+                    "grant_type": "authorization_code",
+                },
+                headers={"Accept": "application/json"},
+            )
+    except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
+        raise HTTPException(
+            502,
+            f"OAuth provider 不可达(国内服务器到 {provider} token endpoint 网络受限)。"
+            f"配 OAUTH_HTTP_PROXY=http://proxy:port 后重试。原始错误: {type(e).__name__}",
+        )
+
     if token_resp.status_code != 200:
         raise HTTPException(400, f"token_exchange_failed: {token_resp.text[:200]}")
     access_token = token_resp.json().get("access_token")
 
-    user_resp = httpx.get(c["userinfo"],
-                          headers={"Authorization": f"Bearer {access_token}"}, timeout=10)
+    try:
+        with httpx.Client(**client_kwargs) as hc:
+            user_resp = hc.get(
+                c["userinfo"],
+                headers={"Authorization": f"Bearer {access_token}"},
+            )
+    except (httpx.ConnectTimeout, httpx.ReadTimeout, httpx.ConnectError) as e:
+        raise HTTPException(502, f"userinfo 不可达: {type(e).__name__}")
+
     if user_resp.status_code != 200:
         raise HTTPException(400, "userinfo_failed")
     profile = user_resp.json()
