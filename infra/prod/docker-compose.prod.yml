@@ -57,6 +57,11 @@ services:
       # JWT 签名密钥(从 host .env 继承,不入仓库)
       TRAILLENS_AUTH_SECRET: ${TRAILLENS_AUTH_SECRET:-}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET:-${TRAILLENS_AUTH_SECRET:-}}
+      # OAuth(Google/GitHub)
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID:-}
+      GOOGLE_CLIENT_SECRET: ${GOOGLE_CLIENT_SECRET:-}
+      GITHUB_CLIENT_ID: ${GITHUB_CLIENT_ID:-}
+      GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       PORT: 8000
       # 从主机 .env 继承(不内置 secret)
       # llm.py 接受 ARK_* 或 DOUBAO_* 任一命名,优先 ARK_*
