@@ -162,23 +162,37 @@ def story_node(state: GraphState) -> dict:
 # --------------------------------------------------------------------------- #
 def planner_node(state: GraphState) -> dict:
     hike = state.hike
-    if hike.gps_lat is None:
-        return {
-            "next_trip_plan": None,
-            "messages": [{"role": "planner", "content": "无 GPS,跳过计划"}],
-        }
-    times = clients.sun_moon_times(hike.gps_lat, hike.gps_lon, "2026-06-01")
-    # 从用户保留片里推断偏好焦段
-    focal = [p.exif.focal_length_mm for p in state.kept_photos() if p.exif.focal_length_mm]
-    plan = {
-        "best_windows": [times["golden_hour_am"], times["golden_hour_pm"], times["blue_hour_pm"]],
-        "recommended_focal_mm": sorted(set(focal)) or [24, 70],
-        "gear_checklist": ["三脚架", "ND 滤镜", "备用电池", "头灯"],
-        "weather_note": clients.fetch_weather(hike.gps_lat, hike.gps_lon),
+    # 推荐焦段:从用户保留片里推断偏好,没有就用经典风光焦段
+    focal = sorted({p.exif.focal_length_mm for p in state.kept_photos()
+                    if p.exif.focal_length_mm}) or [24.0, 35.0, 70.0]
+
+    plan: dict = {
+        "recommended_focal_mm": focal,
+        "gear_checklist": ["三脚架", "ND 滤镜", "渐变滤镜", "备用电池", "头灯"],
     }
+
+    if hike.gps_lat is not None:
+        # 有 GPS:接真实日月 + 天气 API
+        times = clients.sun_moon_times(hike.gps_lat, hike.gps_lon, "2026-06-01")
+        plan["best_windows"] = [
+            times["golden_hour_am"],
+            times["golden_hour_pm"],
+            times["blue_hour_pm"],
+        ]
+        plan["weather_note"] = clients.fetch_weather(hike.gps_lat, hike.gps_lon)
+        msg = "下次拍摄计划已生成(基于 GPS)"
+    else:
+        # 无 GPS:按 location_name 给通用建议(不调外部 API)
+        plan["best_windows"] = ["日出前 30 min(蓝调时刻)", "日出后 60 min(金色时刻)",
+                                "日落前 60 min(金色时刻)"]
+        plan["weather_note"] = "建议查询当地天气 APP;阴天云层有戏剧感,晴天利于通透"
+        plan["note"] = (f"基于地点「{hike.location_name or '该 trail'}」的通用建议;"
+                        f"上传带 GPS 的照片可获得精确日月时刻 + 实时天气")
+        msg = "下次拍摄计划已生成(无 GPS,通用建议)"
+
     return {
         "next_trip_plan": plan,
-        "messages": [{"role": "planner", "content": "下次拍摄计划已生成"}],
+        "messages": [{"role": "planner", "content": msg}],
     }
 
 

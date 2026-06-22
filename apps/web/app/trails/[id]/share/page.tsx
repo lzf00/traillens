@@ -85,7 +85,11 @@ export default async function SharePage({ params }: PageProps) {
   const { id } = await params;
   const trail = await fetchTrail(id);
   if (!trail) notFound();
-  const photos = (await fetchPhotos(id)).filter((p) => p.verdict === "keep");
+  const allPhotos = await fetchPhotos(id);
+  const keepPhotos = allPhotos.filter((p) => p.verdict === "keep");
+  // 优先精选 keep;若无 keep 但有照片,fallback 显示全部并加横幅
+  const showingAll = keepPhotos.length === 0 && allPhotos.length > 0;
+  const photos = showingAll ? allPhotos : keepPhotos;
 
   // JSON-LD: schema.org/ImageGallery + Photograph,助 Google Images 收录
   const jsonLd = {
@@ -113,7 +117,10 @@ export default async function SharePage({ params }: PageProps) {
         <p className="mono mb-3">{trail.location_name ?? "TrailLens"}</p>
         <h1 className="font-display text-5xl text-fg-primary leading-tight">{trail.name}</h1>
         <p className="mt-4 text-fg-secondary">
-          {photos.length} 张精选 ·{" "}
+          {showingAll
+            ? `${photos.length} 张 · 作者尚未标记精选`
+            : `${photos.length} 张精选`}
+          {" · "}
           <time dateTime={trail.created_at}>
             {new Date(trail.created_at).toLocaleDateString("zh-CN", {
               year: "numeric", month: "long", day: "numeric",
@@ -121,6 +128,14 @@ export default async function SharePage({ params }: PageProps) {
           </time>
         </p>
       </header>
+
+      {/* 空状态: trail 完全没照片 */}
+      {photos.length === 0 && (
+        <div className="rounded-md border border-dashed border-divider px-6 py-16 text-center">
+          <p className="mono text-xs text-fg-tertiary mb-3">EMPTY</p>
+          <p className="text-fg-secondary">作者还没上传照片。</p>
+        </div>
+      )}
 
       {/* 照片网格 */}
       <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
@@ -133,6 +148,11 @@ export default async function SharePage({ params }: PageProps) {
               loading="lazy"
               className="h-full w-full object-cover"
             />
+            {showingAll && p.verdict && (
+              <figcaption className="absolute top-2 left-2 status-pill backdrop-blur capitalize">
+                {p.verdict}
+              </figcaption>
+            )}
             {p.aesthetic && (
               <figcaption className="absolute bottom-2 right-2 status-pill backdrop-blur">
                 {p.aesthetic.overall.toFixed(1)}
