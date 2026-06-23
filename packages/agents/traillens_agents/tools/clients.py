@@ -115,20 +115,40 @@ def _random_stub_score() -> AestheticScore:
 # 2) 技术质量检测(选片硬指标:模糊/曝光/重复)
 # --------------------------------------------------------------------------- #
 def detect_technical_defects(photo: Photo) -> tuple[PhotoVerdict, str | None]:
-    """返回 (verdict, reason)。
+    """读 photo.exif 里上传时 cv2 算好的 _tech_metrics:
+      blur_score < 50           → REJECT blur(硬糊)
+      exposure_under_pct > 0.35 → REJECT under_exposed
+      exposure_over_pct > 0.30  → REJECT over_exposed
+      blur_score < 100          → REVIEW slight_blur(留人工)
+      其他                       → KEEP(后续走美学评分)
 
-    [STUB] 随机给瑕疵标签。
-    [REAL] 用 OpenCV 拉普拉斯方差判模糊 + 直方图判过/欠曝 +
-           CLIP/感知哈希(pHash)判重复帧。这些是 *确定性* 算法,
-           应跑在美学模型之前作为快速过滤,降低 GPU 调用成本。
+    无指标(老照片 / cv2 解码失败) → KEEP,不阻断流程
     """
-    roll = random.random()
-    if roll < 0.12:
-        return PhotoVerdict.REJECT, "blur"
-    if roll < 0.18:
-        return PhotoVerdict.REJECT, "over_exposed"
-    if roll < 0.25:
-        return PhotoVerdict.REVIEW, "near_duplicate"  # 触发 HITL
+    metrics = None
+    exif = getattr(photo, "exif", None)
+    if exif is not None:
+        # ExifMeta(pydantic v2)的额外字段在 model_extra
+        metrics = (getattr(exif, "model_extra", None) or {}).get("_tech_metrics")
+        if metrics is None and hasattr(exif, "model_dump"):
+            metrics = exif.model_dump().get("_tech_metrics")
+        if metrics is None and isinstance(exif, dict):
+            metrics = exif.get("_tech_metrics")
+
+    if not metrics:
+        return PhotoVerdict.KEEP, None
+
+    blur = metrics.get("blur_score", 1000)
+    under = metrics.get("exposure_under_pct", 0)
+    over = metrics.get("exposure_over_pct", 0)
+
+    if blur < 50:
+        return PhotoVerdict.REJECT, f"blur(laplace={blur:.0f})"
+    if under > 0.35:
+        return PhotoVerdict.REJECT, f"under_exposed({under:.0%} black)"
+    if over > 0.30:
+        return PhotoVerdict.REJECT, f"over_exposed({over:.0%} white)"
+    if blur < 100:
+        return PhotoVerdict.REVIEW, f"slight_blur(laplace={blur:.0f})"
     return PhotoVerdict.KEEP, None
 
 

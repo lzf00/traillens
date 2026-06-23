@@ -17,7 +17,7 @@ RUN pip install --no-cache-dir --prefix=/install \
     -i https://mirrors.cloud.tencent.com/pypi/simple/ \
     "fastapi>=0.110" "uvicorn[standard]>=0.27" "pydantic[email]>=2.7" \
     "python-multipart>=0.0.9" \
-    "Pillow>=10.0" \
+    "Pillow>=10.0" "opencv-python-headless>=4.8" "numpy>=1.24" \
     "bcrypt>=4.0" "PyJWT>=2.8" \
     "sqlalchemy>=2.0" "psycopg[binary]>=3.1" "alembic>=1.13" \
     "httpx>=0.27" "redis>=5.0" \

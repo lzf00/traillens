@@ -25,7 +25,7 @@ from typing import Annotated, Any, Literal
 # 生产环境务必安装 pydantic(强校验 + FastAPI 复用);此降级仅为零依赖 demo。
 # --------------------------------------------------------------------------- #
 try:
-    from pydantic import BaseModel, Field  # type: ignore
+    from pydantic import BaseModel, ConfigDict, Field  # type: ignore
 
     _HAS_PYDANTIC = True
 except ImportError:  # pragma: no cover - fallback path
@@ -40,6 +40,10 @@ except ImportError:  # pragma: no cover - fallback path
         if isinstance(default, (list, dict, set)):
             return _dc_field(default_factory=lambda d=default: type(d)(d))
         return default
+
+    def ConfigDict(**_kwargs):  # noqa: N802
+        """无 pydantic 时的占位,什么也不做。"""
+        return {}
 
     class _Meta(type):
         def __new__(mcs, name, bases, ns):
@@ -98,7 +102,13 @@ class AestheticScore(BaseModel):
 
 
 class ExifMeta(BaseModel):
-    """从 EXIF MCP server 解析出的关键元数据(精简版)。"""
+    """从 EXIF MCP server 解析出的关键元数据(精简版)。
+
+    允许 extra 字段:_tech_metrics(上传时 cv2 算的 blur/exposure/dhash)等扩展信息
+    透过 model_extra 访问,detect_technical_defects 用。
+    """
+
+    model_config = ConfigDict(extra="allow")
 
     focal_length_mm: float | None = None
     aperture_f: float | None = None

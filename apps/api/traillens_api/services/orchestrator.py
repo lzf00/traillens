@@ -61,9 +61,13 @@ def _build_initial_state(trail_id: str, run_id: str, user_id: str | None = None)
                 for r in rows:
                     exif_dict = r.exif if isinstance(r.exif, dict) else {}
                     if exif_dict:
-                        # 真 EXIF — 构造 ExifMeta,缺字段用 None
-                        exif = _ExifMeta(**{k: v for k, v in exif_dict.items()
-                                            if k in _ExifMeta.model_fields})
+                        # ExifMeta 字段 + extra (_tech_metrics 等)一起塞,
+                        # extra='allow' 让 cv2 算的 blur/exposure 保留到 model_extra
+                        known = {k: v for k, v in exif_dict.items()
+                                 if k in _ExifMeta.model_fields}
+                        extras = {k: v for k, v in exif_dict.items()
+                                  if k not in _ExifMeta.model_fields}
+                        exif = _ExifMeta(**known, **extras)
                     else:
                         # 无真 EXIF,fallback 到 random stub(culling/critic 别炸)
                         exif = clients.read_exif(r.uri)
