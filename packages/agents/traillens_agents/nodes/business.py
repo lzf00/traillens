@@ -25,6 +25,10 @@ def culling_node(state: GraphState) -> dict:
     pending: list[str] = []
 
     for p in photos:
+        # 增量:已有 verdict 的照片直接跳过(支持补传后重 Run)
+        if p.verdict is not None:
+            continue
+
         # 1) 先跑确定性技术检测(便宜,先筛掉硬伤,省 GPU)
         verdict, reason = clients.detect_technical_defects(p)
         p.verdict, p.reject_reason = verdict, reason

@@ -21,7 +21,7 @@ import { Button } from "@/components/ui/Button";
 import { InlineEdit } from "@/components/ui/InlineEdit";
 import { apiFetch } from "@/lib/api";
 import { streamSse } from "@/lib/sse";
-import { Play, Square, MoreVertical, Pencil, Trash2, Plus, X, Check } from "lucide-react";
+import { Play, Square, MoreVertical, Pencil, Trash2, Plus, X, Check, Download, Share2 } from "lucide-react";
 import { useRouter } from "next/navigation";
 
 export default function TrailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -268,6 +268,34 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
     if (r.ok) router.push("/trails");
   }
 
+  async function onExportJson() {
+    const r = await apiFetch(`/v1/trails/${trailId}/export/json`);
+    if (!r.ok) { alert("导出失败"); return; }
+    const data = await r.json();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = `${trailName || "trail"}-backup.json`;
+    a.click();
+    URL.revokeObjectURL(a.href);
+  }
+
+  async function onExportXhs() {
+    const r = await apiFetch(`/v1/trails/${trailId}/export/xhs`);
+    if (!r.ok) { alert("导出失败"); return; }
+    const data = await r.json();
+    // 弹窗显示文案 + 照片 URL,让用户复制
+    const txt = `${data.caption}\n\n--- 照片 URL(${data.image_count} 张) ---\n${data.images.join("\n")}`;
+    // 复制到剪贴板 + 提示
+    try {
+      await navigator.clipboard.writeText(txt);
+      alert(`✅ 已复制到剪贴板:\n${data.image_count} 张照片 URL + 小红书风格文案\n\n直接到小红书创作页粘贴文案,逐张下载照片或长按存图。`);
+    } catch {
+      // fallback 用 prompt
+      prompt("一键复制小红书图文(Ctrl/Cmd+C):", txt);
+    }
+  }
+
   return (
     <div className="flex h-dvh flex-col">
       {/* Header */}
@@ -324,6 +352,19 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
               >
                 <Pencil size={12} /> 重命名
               </button>
+              <button
+                onClick={() => { setMenuOpen(false); onExportXhs(); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-fg-secondary hover:bg-bg-overlay hover:text-fg-primary text-left"
+              >
+                <Share2 size={12} /> 导出小红书图文
+              </button>
+              <button
+                onClick={() => { setMenuOpen(false); onExportJson(); }}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-fg-secondary hover:bg-bg-overlay hover:text-fg-primary text-left"
+              >
+                <Download size={12} /> 导出 JSON 备份
+              </button>
+              <div className="border-t border-divider my-1" />
               <button
                 onClick={() => { setMenuOpen(false); onDelete(); }}
                 className="flex items-center gap-2 w-full px-3 py-2 text-xs text-accent-danger hover:bg-bg-overlay text-left"

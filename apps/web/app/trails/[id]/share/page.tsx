@@ -59,25 +59,38 @@ async function fetchPhotos(id: string): Promise<Photo[]> {
 
 export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
   const { id } = await params;
-  const trail = await fetchTrail(id);
+  const [trail, photos] = await Promise.all([fetchTrail(id), fetchPhotos(id)]);
   if (!trail) return {};
-  const title = `${trail.name} · ${trail.location_name ?? "Trail"}`;
-  const ogParams = new URLSearchParams({
+
+  const title = `${trail.name}${trail.location_name ? ` · ${trail.location_name}` : ""}`;
+  const desc = trail.travelogue_md?.slice(0, 200) || `用 TrailLens 整理的一次徒步影像。`;
+
+  // 优先用首张 keep 照片做封面(微信/小红书视觉冲击);没有就用任意第一张;再没有走 /og 文字卡
+  const cover =
+    photos.find((p) => p.verdict === "keep") || photos[0];
+  const ogImage = cover?.uri ?? `/og?${new URLSearchParams({
     kind: "trail",
     title,
     subtitle: trail.location_name ?? "TrailLens",
     kept: String(trail.photo_count),
-  });
+  })}`;
+
   return {
     title: `${title} — TrailLens`,
-    description: trail.travelogue_md?.slice(0, 200) || `A trail captured with TrailLens.`,
+    description: desc,
     openGraph: {
       title,
-      description: trail.travelogue_md?.slice(0, 200) || "",
-      images: [{ url: `/og?${ogParams}`, width: 1200, height: 630 }],
+      description: desc,
+      images: [{ url: ogImage, width: 1200, height: 630 }],
       type: "article",
+      siteName: "TrailLens",
     },
-    twitter: { card: "summary_large_image", title, images: [`/og?${ogParams}`] },
+    twitter: { card: "summary_large_image", title, images: [ogImage] },
+    other: {
+      // 微信内置浏览器额外认这两个
+      "itemprop:image": ogImage,
+      "weixin:image": ogImage,
+    },
   };
 }
 

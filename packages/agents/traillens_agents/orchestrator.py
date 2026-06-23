@@ -44,7 +44,8 @@ def decide_next(state: GraphState) -> str:
 
     通过已完成的痕迹推断进度 —— 用 state 里已被填充的字段作为"阶段标记"。
     """
-    done_culling = any(p.verdict is not None for p in state.photos)
+    # 改为 all:任一照片无 verdict 都要再走 culling(补传场景)
+    done_culling = all(p.verdict is not None for p in state.photos) if state.photos else True
     if not done_culling:
         return "culling"
 
