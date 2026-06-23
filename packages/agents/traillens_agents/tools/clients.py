@@ -141,12 +141,13 @@ def detect_technical_defects(photo: Photo) -> tuple[PhotoVerdict, str | None]:
     under = metrics.get("exposure_under_pct", 0)
     over = metrics.get("exposure_over_pct", 0)
 
-    if blur < 50:
-        return PhotoVerdict.REJECT, f"blur(laplace={blur:.0f})"
-    if under > 0.35:
-        return PhotoVerdict.REJECT, f"under_exposed({under:.0%} black)"
+    # 曝光优先(纯色图 blur 天然=0,曝光判定更准)
     if over > 0.30:
         return PhotoVerdict.REJECT, f"over_exposed({over:.0%} white)"
+    if under > 0.35:
+        return PhotoVerdict.REJECT, f"under_exposed({under:.0%} black)"
+    if blur < 50:
+        return PhotoVerdict.REJECT, f"blur(laplace={blur:.0f})"
     if blur < 100:
         return PhotoVerdict.REVIEW, f"slight_blur(laplace={blur:.0f})"
     return PhotoVerdict.KEEP, None
