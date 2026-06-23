@@ -32,7 +32,13 @@ export function ScoreRadar({ scores, size = 220 }: { scores: Scores; size?: numb
     points.map((p, i) => `${i === 0 ? "M" : "L"} ${p[0]} ${p[1]}`).join(" ") + " Z";
 
   return (
-    <svg width={size} height={size} aria-label="美学评分雷达图">
+    <svg
+      width={size}
+      height={size}
+      viewBox={`0 0 ${size} ${size}`}
+      aria-label="美学评分雷达图"
+      style={{ flexShrink: 0, overflow: "visible" }}
+    >
       {/* 网格 */}
       {[0.25, 0.5, 0.75, 1].map((r) => (
         <polygon
