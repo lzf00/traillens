@@ -26,17 +26,32 @@ from fastapi.responses import RedirectResponse
 
 router = APIRouter()
 
+# auth URL 浏览器跳,直连即可(浏览器在用户侧,不受国内服务器墙影响)
+# token + userinfo 是后端调,国内可配 OAUTH_PROXY_BASE 走 CF Worker 中转
+_PROXY = os.environ.get("OAUTH_PROXY_BASE", "").rstrip("/")
+
+def _token_url(provider: str, default: str) -> str:
+    return f"{_PROXY}/{provider}/token" if _PROXY else default
+
+def _userinfo_url(provider: str, default: str) -> str:
+    # userinfo 路径在 worker 里映射为 /provider/userinfo or /provider/user
+    if not _PROXY:
+        return default
+    suffix = "userinfo" if provider == "google" else "user"
+    return f"{_PROXY}/{provider}/{suffix}"
+
+
 PROVIDERS = {
     "google": {
         "auth": "https://accounts.google.com/o/oauth2/v2/auth",
-        "token": "https://oauth2.googleapis.com/token",
-        "userinfo": "https://www.googleapis.com/oauth2/v3/userinfo",
+        "token": _token_url("google", "https://oauth2.googleapis.com/token"),
+        "userinfo": _userinfo_url("google", "https://www.googleapis.com/oauth2/v3/userinfo"),
         "scope": "openid email profile",
     },
     "github": {
         "auth": "https://github.com/login/oauth/authorize",
-        "token": "https://github.com/login/oauth/access_token",
-        "userinfo": "https://api.github.com/user",
+        "token": _token_url("github", "https://github.com/login/oauth/access_token"),
+        "userinfo": _userinfo_url("github", "https://api.github.com/user"),
         "scope": "read:user user:email",
     },
 }

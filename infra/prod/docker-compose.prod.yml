@@ -64,6 +64,8 @@ services:
       GITHUB_CLIENT_SECRET: ${GITHUB_CLIENT_SECRET:-}
       # 国内服务器调海外 OAuth 必备(http/https/socks5);未配则直连(国内多半超时)
       OAUTH_HTTP_PROXY: ${OAUTH_HTTP_PROXY:-}
+      # CF Worker 中转(替换 token/userinfo URL);配了优先于直连
+      OAUTH_PROXY_BASE: ${OAUTH_PROXY_BASE:-}
       PORT: 8000
       # 从主机 .env 继承(不内置 secret)
       # llm.py 接受 ARK_* 或 DOUBAO_* 任一命名,优先 ARK_*
