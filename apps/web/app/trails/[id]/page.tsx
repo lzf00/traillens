@@ -388,7 +388,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           onToggleMulti={toggleMulti}
         />
 
-        <main className="flex flex-1 flex-col items-center justify-center gap-6 p-8">
+        <main className="flex flex-1 flex-col items-center gap-6 p-8 overflow-y-auto">
           <div className="photo-frame relative flex h-[60vh] w-full max-w-3xl items-center justify-center overflow-hidden bg-bg-overlay">
             {selected?.uri ? (
               <>
