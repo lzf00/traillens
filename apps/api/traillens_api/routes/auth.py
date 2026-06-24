@@ -5,6 +5,7 @@ from __future__ import annotations
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
 from pydantic import BaseModel, EmailStr, Field
 
 from ..deps import CurrentUser, get_current_user
@@ -67,17 +68,28 @@ def sign_in(body: SignInBody, response: Response) -> dict:
 
 
 @router.post("/sign-out")
-def sign_out(response: Response) -> dict:
-    # 必须传跟 _set_session_cookie 一致的属性,浏览器才认为是同一 cookie
+def sign_out(request: Request) -> Response:
+    """登出 + 跳首页(浏览器表单 POST 时直接跳转,不让用户看到裸 JSON)。
+
+    fetch() / 非浏览器调用看 Accept 头 → 如果不要 HTML 就返 JSON。
+    """
     secure = os.environ.get("TRAILLENS_ENV", "local") == "prod"
-    response.delete_cookie(
+    accept = (request.headers.get("accept") or "").lower()
+    wants_html = "text/html" in accept
+
+    if wants_html:
+        resp = RedirectResponse(url="/", status_code=303)
+    else:
+        from fastapi.responses import JSONResponse
+        resp = JSONResponse({"ok": True})
+    resp.delete_cookie(
         SESSION_COOKIE,
         path="/",
         httponly=True,
         secure=secure,
         samesite="lax",
     )
-    return {"ok": True}
+    return resp
 
 
 @router.get("/me")
