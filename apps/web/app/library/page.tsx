@@ -6,7 +6,7 @@
  * URL query 支持 ?trail=<uuid>:进入页面时预选该 trail(从 Canvas 跳过来)。
  */
 
-import { useEffect, useMemo, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -28,6 +28,14 @@ type Trail = { id: string; name: string; photo_count: number };
 const EXAMPLES = ["雅拉", "雪山", "构图", "技术", "焦段"];
 
 export default function LibraryPage() {
+  return (
+    <Suspense fallback={<main className="mx-auto max-w-6xl px-6 py-12 mono text-fg-tertiary">加载…</main>}>
+      <LibraryInner />
+    </Suspense>
+  );
+}
+
+function LibraryInner() {
   const params = useSearchParams();
   const initialTrail = params?.get("trail") ?? "";
 
