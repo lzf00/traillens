@@ -34,16 +34,19 @@ class SearchResult(BaseModel):
 def search(
     q: str = Query(..., min_length=1, description="自然语言查询,如:川西秋天逆光"),
     limit: int = Query(20, ge=1, le=100),
+    trail_id: str | None = Query(None, description="可选:只搜该 trail 内"),
     user: CurrentUser = Depends(get_current_user),
 ) -> list[SearchResult]:
     if not db.has_db():
         return []
 
+    trail_filter = "AND t.id = :tid" if trail_id else ""
+
     # ----- 路径 1: pgvector 语义查询 -----
     qvec = embed_text(q)
     if qvec:
         vec_str = "[" + ",".join(f"{x:.6f}" for x in qvec) + "]"
-        sem_sql = text("""
+        sem_sql = text(f"""
             SELECT
               p.id, p.uri, p.verdict, p.aesthetic,
               t.id AS trail_id, t.name AS trail_name,
@@ -51,11 +54,15 @@ def search(
             FROM photos p
             JOIN trails t ON t.id = p.trail_id
             WHERE t.user_id = :uid AND p.embedding IS NOT NULL
+              {trail_filter}
             ORDER BY p.embedding <=> CAST(:v AS vector)
             LIMIT :lim
         """)
+        params = dict(v=vec_str, uid=user.id, lim=limit)
+        if trail_id:
+            params["tid"] = trail_id
         with db.session() as s:
-            rows = s.execute(sem_sql, dict(v=vec_str, uid=user.id, lim=limit)).all()
+            rows = s.execute(sem_sql, params).all()
         if rows:
             return [
                 SearchResult(
@@ -72,7 +79,7 @@ def search(
 
     # ----- 路径 2: ILIKE fallback -----
     like = f"%{q.strip()}%"
-    sql = text("""
+    sql = text(f"""
         SELECT
             p.id, p.uri, p.verdict, p.aesthetic,
             t.id AS trail_id, t.name AS trail_name,
@@ -84,6 +91,7 @@ def search(
         FROM photos p
         JOIN trails t ON t.id = p.trail_id
         WHERE t.user_id = :uid
+          {trail_filter}
           AND (
               p.critique ILIKE :like
               OR t.name ILIKE :like
@@ -93,8 +101,11 @@ def search(
         ORDER BY score DESC, p.created_at DESC
         LIMIT :lim
     """)
+    params = dict(like=like, uid=user.id, lim=limit)
+    if trail_id:
+        params["tid"] = trail_id
     with db.session() as s:
-        rows = s.execute(sql, dict(like=like, uid=user.id, lim=limit)).all()
+        rows = s.execute(sql, params).all()
     return [
         SearchResult(
             photo_id=str(r.id),

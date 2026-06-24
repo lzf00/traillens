@@ -318,6 +318,13 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
         </div>
         <div className="flex gap-2 items-center relative">
           <a
+            href={`/library?trail=${trailId}`}
+            className="rounded-md border border-divider px-3 py-1.5 text-xs text-fg-secondary hover:border-accent-aurora hover:text-accent-aurora transition-colors"
+            title="只搜本 trail 的照片"
+          >
+            搜本组
+          </a>
+          <a
             href={`/trails/${trailId}/share`}
             target="_blank"
             rel="noreferrer"
