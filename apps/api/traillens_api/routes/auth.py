@@ -68,7 +68,15 @@ def sign_in(body: SignInBody, response: Response) -> dict:
 
 @router.post("/sign-out")
 def sign_out(response: Response) -> dict:
-    response.delete_cookie(SESSION_COOKIE, path="/")
+    # 必须传跟 _set_session_cookie 一致的属性,浏览器才认为是同一 cookie
+    secure = os.environ.get("TRAILLENS_ENV", "local") == "prod"
+    response.delete_cookie(
+        SESSION_COOKIE,
+        path="/",
+        httponly=True,
+        secure=secure,
+        samesite="lax",
+    )
     return {"ok": True}
 
 

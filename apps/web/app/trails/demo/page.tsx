@@ -1,17 +1,26 @@
 /**
- * /trails/demo — 重定向到公开 demo trail 的分享页。
+ * /trails/demo — 重定向到当前最适合做 demo 的公开 trail。
  *
- * trail_id 由 NEXT_PUBLIC_DEMO_TRAIL_ID env 配置;
- * 默认指向 "202605 雅拉温泉线"(本人手上的 seed)。
+ * 后端 /v1/trails/_demo/public 自动选(有 travelogue + photo_count 高 + 最新)。
+ * 失败 fallback 到 NEXT_PUBLIC_DEMO_TRAIL_ID env 或硬编码。
  */
 import { redirect } from "next/navigation";
+import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
-const DEMO_ID =
+const FALLBACK_ID =
   process.env.NEXT_PUBLIC_DEMO_TRAIL_ID ||
-  "3209f766-1090-464c-8d85-e57c1bbc9fa0";
+  "eeac6041-5b15-461b-93e9-33244decfbfb";
 
-export default function DemoRedirect() {
-  redirect(`/trails/${DEMO_ID}/share`);
+export default async function DemoRedirect() {
+  let demoId = FALLBACK_ID;
+  try {
+    const r = await apiFetch("/v1/trails/_demo/public", { cache: "no-store" });
+    if (r.ok) {
+      const t = await r.json();
+      if (t?.id) demoId = t.id;
+    }
+  } catch {}
+  redirect(`/trails/${demoId}/share`);
 }

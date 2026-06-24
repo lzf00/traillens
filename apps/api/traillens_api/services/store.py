@@ -54,6 +54,20 @@ def list_photos_public(trail_id: str) -> list[PhotoOut]:
     return _PHOTOS.get(trail_id, [])
 
 
+def pick_demo_trail() -> TrailOut | None:
+    """挑一个最适合做 demo 的 trail:有 travelogue + 有照片 > 0。
+
+    选择规则:travelogue 非空 > photo_count 高 > updated_at 新。
+    """
+    if db.has_db():
+        return _db_pick_demo()
+    for t in sorted(_TRAILS.values(), key=lambda x: x.updated_at, reverse=True):
+        if t.travelogue_md and t.photo_count > 0:
+            return t
+    # fallback:取最新一条
+    return next(iter(sorted(_TRAILS.values(), key=lambda x: x.updated_at, reverse=True)), None)
+
+
 def list_trails(*, user_id: str, limit: int = 50) -> list[TrailOut]:
     if db.has_db():
         return _db_list_trails(user_id=user_id, limit=limit)
@@ -395,6 +409,24 @@ def _db_get_trail_public(trail_id):
     """)
     with db.session() as s:
         row = s.execute(sql, dict(tid=trail_id)).first()
+        return _row_to_trail(row) if row else None
+
+
+def _db_pick_demo():
+    sql = _text("""
+        SELECT t.id, t.user_id, t.name, t.location_name, t.gpx_uri, t.state,
+               t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
+               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count,
+               NULL::text AS cover_uri
+        FROM trails t
+        WHERE (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) > 0
+        ORDER BY (t.travelogue_md IS NOT NULL) DESC,
+                 (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) DESC,
+                 t.updated_at DESC
+        LIMIT 1
+    """)
+    with db.session() as s:
+        row = s.execute(sql).first()
         return _row_to_trail(row) if row else None
 
 

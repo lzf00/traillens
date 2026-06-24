@@ -53,6 +53,18 @@ def get_trail(
     return trail
 
 
+@router.get("/_demo/public", response_model=TrailOut)
+def get_demo_trail() -> TrailOut:
+    """自动选一个有照片 + travelogue 的 trail 作为 demo;否则取最新一条。
+
+    /trails/demo 页面调它,跳过去看 share 页。不用 hardcode trail_id。
+    """
+    trail = store.pick_demo_trail()
+    if not trail:
+        raise HTTPException(404, "no_public_trail")
+    return trail
+
+
 @router.get("/{trail_id}/public", response_model=TrailOut)
 def get_trail_public(trail_id: str) -> TrailOut:
     """无需登录的公开 trail 读取(分享页用)。"""
