@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from "react";
-import { Search } from "lucide-react";
+import { Search, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 type Hit = {
@@ -24,6 +24,29 @@ export default function LibraryPage() {
   const [q, setQ] = useState("");
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
+  const [reindexMsg, setReindexMsg] = useState<string | null>(null);
+
+  async function reindex() {
+    if (reindexing) return;
+    setReindexing(true);
+    setReindexMsg(null);
+    try {
+      const r = await apiFetch("/v1/library/embed/all", { method: "POST" });
+      if (r.ok) {
+        const j = await r.json();
+        setReindexMsg(`已索引 ${j.embedded} 张,跳过 ${j.skipped} 张`);
+      } else if (r.status === 401) {
+        setReindexMsg("请先登录");
+      } else {
+        setReindexMsg(`失败 HTTP ${r.status}`);
+      }
+    } catch (e: any) {
+      setReindexMsg(`网络错误: ${e.message}`);
+    } finally {
+      setReindexing(false);
+    }
+  }
 
   useEffect(() => {
     if (!q.trim()) return;
@@ -39,7 +62,21 @@ export default function LibraryPage() {
   return (
     <main className="mx-auto max-w-6xl px-6 py-12">
       <header className="mb-8">
-        <h1 className="font-display text-3xl text-fg-primary mb-4">语义搜索</h1>
+        <div className="flex items-start justify-between mb-4 gap-4">
+          <h1 className="font-display text-3xl text-fg-primary">语义搜索</h1>
+          <button
+            onClick={reindex}
+            disabled={reindexing}
+            className="flex items-center gap-1.5 rounded-md border border-divider px-3 py-1.5 text-xs text-fg-secondary hover:border-accent-aurora hover:text-accent-aurora transition-colors disabled:opacity-50"
+            title="把所有 trail 的照片重新编码进语义索引(Run 跑完会自动做)"
+          >
+            <RefreshCw size={12} className={reindexing ? "animate-spin" : ""} />
+            {reindexing ? "重建中…" : "重建索引"}
+          </button>
+        </div>
+        {reindexMsg && (
+          <div className="mb-3 mono text-xs text-fg-secondary">{reindexMsg}</div>
+        )}
 
         <div className="relative">
           <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-fg-tertiary" />
@@ -71,7 +108,7 @@ export default function LibraryPage() {
 
       {!loading && q && hits.length === 0 && (
         <div className="text-fg-tertiary text-sm">
-          暂无结果。语义搜索 Sprint 5 末才接 pgvector,当前是 stub。
+          暂无结果。如果是新加的照片,试试右上「重建索引」让它们进入语义搜索。
         </div>
       )}
 
