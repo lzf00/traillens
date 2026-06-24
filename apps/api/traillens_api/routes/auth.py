@@ -17,7 +17,7 @@ SESSION_COOKIE = "traillens_session"
 COOKIE_DAYS = int(os.environ.get("TRAILLENS_SESSION_DAYS", "30"))
 
 
-def _set_session_cookie(resp: Response, token: str) -> None:
+def _set_session_cookie(resp: Response, token: str, email: str | None = None) -> None:
     secure = os.environ.get("TRAILLENS_ENV", "local") == "prod"
     resp.set_cookie(
         key=SESSION_COOKIE,
@@ -28,6 +28,18 @@ def _set_session_cookie(resp: Response, token: str) -> None:
         max_age=COOKIE_DAYS * 24 * 3600,
         path="/",
     )
+    # 兼容旧 dev 桥:annotation 容器 + 部分老脚本读 traillens_user_email
+    # 让 settings 页的"标注后台"模块对新 auth 用户也工作
+    if email:
+        resp.set_cookie(
+            key="traillens_user_email",
+            value=email,
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+            max_age=COOKIE_DAYS * 24 * 3600,
+            path="/",
+        )
 
 
 class SignUpBody(BaseModel):
@@ -53,7 +65,7 @@ def sign_up(body: SignUpBody, response: Response) -> dict:
             "password_too_short": "密码至少 6 位",
         }
         raise HTTPException(400, detail=msg_map.get(code, code))
-    _set_session_cookie(response, out.pop("token"))
+    _set_session_cookie(response, out.pop("token"), email=out.get("email"))
     return out
 
 
@@ -63,7 +75,7 @@ def sign_in(body: SignInBody, response: Response) -> dict:
         out = auth_svc.sign_in(body.email, body.password)
     except ValueError:
         raise HTTPException(401, "邮箱或密码错误")
-    _set_session_cookie(response, out.pop("token"))
+    _set_session_cookie(response, out.pop("token"), email=out.get("email"))
     return out
 
 
@@ -82,13 +94,14 @@ def sign_out(request: Request) -> Response:
     else:
         from fastapi.responses import JSONResponse
         resp = JSONResponse({"ok": True})
-    resp.delete_cookie(
-        SESSION_COOKIE,
-        path="/",
-        httponly=True,
-        secure=secure,
-        samesite="lax",
-    )
+    for ck in (SESSION_COOKIE, "traillens_user_email"):
+        resp.delete_cookie(
+            ck,
+            path="/",
+            httponly=True,
+            secure=secure,
+            samesite="lax",
+        )
     return resp
 
 
