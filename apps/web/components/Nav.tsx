@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
+import { ThemeToggle } from "./ThemeToggle";
 
 async function fetchMe(): Promise<{ email: string; name: string | null } | null> {
   const base = process.env.TRAILLENS_API_INTERNAL_BASE || process.env.NEXT_PUBLIC_API_BASE || "";
@@ -45,6 +46,7 @@ export async function Nav() {
       </div>
 
       <div className="flex items-center gap-3 text-sm">
+        <ThemeToggle />
         {me ? (
           <>
             <span className="mono text-xs text-fg-tertiary">{me.email}</span>

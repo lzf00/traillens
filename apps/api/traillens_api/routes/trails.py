@@ -42,6 +42,47 @@ def list_trails(
     return store.list_trails(user_id=user.id, limit=limit)
 
 
+@router.get("/_health")
+def trails_health(user: CurrentUser = Depends(get_current_user)) -> dict:
+    """逐 trail 健康度:photo 数 / scored / critique / embedding 完整度。
+
+    Settings 面板用,一眼看出哪些 trail 还没跑过 Run 或缺 embedding。
+    """
+    from sqlalchemy import text as _text
+    from ..services import db as _db
+    if not _db.has_db():
+        return {"trails": []}
+    sql = _text("""
+        SELECT t.id, t.name,
+               COUNT(p.id) AS total,
+               SUM(CASE WHEN p.verdict IS NOT NULL THEN 1 ELSE 0 END) AS scored,
+               SUM(CASE WHEN p.verdict = 'keep' THEN 1 ELSE 0 END) AS keeps,
+               SUM(CASE WHEN p.critique IS NOT NULL THEN 1 ELSE 0 END) AS critiqued,
+               SUM(CASE WHEN p.embedding IS NOT NULL THEN 1 ELSE 0 END) AS embedded
+        FROM trails t
+        LEFT JOIN photos p ON p.trail_id = t.id
+        WHERE t.user_id = :uid
+        GROUP BY t.id, t.name
+        ORDER BY t.updated_at DESC
+    """)
+    with _db.session() as s:
+        rows = s.execute(sql, dict(uid=user.id)).all()
+    return {
+        "trails": [
+            {
+                "id": str(r.id),
+                "name": r.name,
+                "total": int(r.total or 0),
+                "scored": int(r.scored or 0),
+                "keeps": int(r.keeps or 0),
+                "critiqued": int(r.critiqued or 0),
+                "embedded": int(r.embedded or 0),
+            }
+            for r in rows
+        ],
+    }
+
+
 @router.get("/{trail_id}", response_model=TrailOut)
 def get_trail(
     trail_id: str,

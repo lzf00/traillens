@@ -19,11 +19,24 @@ type TrainStats = {
   ready_to_train: boolean;
 };
 
+type TrailHealth = {
+  id: string;
+  name: string;
+  total: number;
+  scored: number;
+  keeps: number;
+  critiqued: number;
+  embedded: number;
+};
+
 export default function SettingsPage() {
   const [tokens, setTokens] = useState<TokenInfo[]>([]);
   const [newSecret, setNewSecret] = useState<string | null>(null);
   const [newLabel, setNewLabel] = useState("Lightroom Plugin");
   const [trainStats, setTrainStats] = useState<TrainStats | null>(null);
+  const [health, setHealth] = useState<TrailHealth[]>([]);
+  const [reembedAllBusy, setReembedAllBusy] = useState(false);
+  const [reembedMsg, setReembedMsg] = useState<string | null>(null);
 
   useEffect(() => {
     fetch("/v1/settings/tokens").then((r) => r.json()).then(setTokens).catch(() => {});
@@ -31,7 +44,33 @@ export default function SettingsPage() {
       .then((r) => (r.ok ? r.json() : null))
       .then(setTrainStats)
       .catch(() => {});
+    fetch("/v1/trails/_health")
+      .then((r) => (r.ok ? r.json() : { trails: [] }))
+      .then((d) => setHealth(d.trails ?? []))
+      .catch(() => {});
   }, []);
+
+  async function reembedAll() {
+    if (reembedAllBusy) return;
+    setReembedAllBusy(true);
+    setReembedMsg(null);
+    try {
+      const r = await fetch("/v1/library/embed/all", { method: "POST" });
+      if (r.ok) {
+        const j = await r.json();
+        setReembedMsg(`已索引 ${j.embedded} 张,跳过 ${j.skipped} 张`);
+        // 刷新健康面板
+        const hr = await fetch("/v1/trails/_health");
+        if (hr.ok) setHealth((await hr.json()).trails ?? []);
+      } else {
+        setReembedMsg(`失败 HTTP ${r.status}`);
+      }
+    } catch (e: any) {
+      setReembedMsg(`网络错误: ${e.message}`);
+    } finally {
+      setReembedAllBusy(false);
+    }
+  }
 
   async function createToken() {
     if (!newLabel.trim()) return;
@@ -117,6 +156,61 @@ export default function SettingsPage() {
       <Section title="个人风格偏好(PIAA)">
         <p className="text-fg-secondary text-sm mb-3">标注 50 张以上后,我们会为你训练专属美学评分模型。</p>
         <div className="status-pill">{trainStats?.annotated ?? 0} / 50</div>
+      </Section>
+
+      <Section title="数据健康">
+        <p className="text-fg-secondary text-sm mb-3 flex items-center justify-between gap-3">
+          <span>每个 trail 的 photos / scored / keep / critique / embedding 计数。embedding 不齐全的话语义搜索会漏。</span>
+          <button
+            onClick={reembedAll}
+            disabled={reembedAllBusy}
+            className="shrink-0 rounded-md border border-divider px-3 py-1 text-xs text-fg-secondary hover:border-accent-aurora hover:text-accent-aurora disabled:opacity-50 transition-colors"
+          >
+            {reembedAllBusy ? "重建中…" : "一键重建全部索引"}
+          </button>
+        </p>
+        {reembedMsg && (
+          <div className="mono text-xs text-fg-secondary mb-2">{reembedMsg}</div>
+        )}
+        {health.length === 0 ? (
+          <p className="text-fg-tertiary text-sm">还没有 trail。</p>
+        ) : (
+          <div className="rounded-md border border-divider overflow-hidden">
+            <table className="w-full text-xs">
+              <thead className="bg-bg-raised text-fg-tertiary mono">
+                <tr>
+                  <th className="text-left px-3 py-2 font-normal">名称</th>
+                  <th className="text-right px-3 py-2 font-normal">总数</th>
+                  <th className="text-right px-3 py-2 font-normal">已评</th>
+                  <th className="text-right px-3 py-2 font-normal">keep</th>
+                  <th className="text-right px-3 py-2 font-normal">点评</th>
+                  <th className="text-right px-3 py-2 font-normal">索引</th>
+                </tr>
+              </thead>
+              <tbody>
+                {health.map((t) => {
+                  const allEmbed = t.critiqued > 0 && t.embedded === t.critiqued;
+                  return (
+                    <tr key={t.id} className="border-t border-divider">
+                      <td className="px-3 py-2">
+                        <a href={`/trails/${t.id}`} className="text-fg-primary hover:text-accent-aurora truncate inline-block max-w-[260px]">
+                          {t.name}
+                        </a>
+                      </td>
+                      <td className="text-right px-3 py-2 mono text-fg-secondary">{t.total}</td>
+                      <td className="text-right px-3 py-2 mono text-fg-secondary">{t.scored}</td>
+                      <td className="text-right px-3 py-2 mono text-accent-aurora">{t.keeps}</td>
+                      <td className="text-right px-3 py-2 mono text-fg-secondary">{t.critiqued}</td>
+                      <td className={"text-right px-3 py-2 mono " + (allEmbed ? "text-accent-aurora" : "text-fg-tertiary")}>
+                        {t.embedded}{t.critiqued > 0 && t.embedded < t.critiqued ? "⚠" : ""}
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Section>
 
       {/* Aesthetic LoRA 训练状态 */}

@@ -6,6 +6,27 @@
   color-scheme: dark;
 }
 
+/* ───── Light theme(html.theme-light)─────
+   不重写 Tailwind colors,只 override 关键 utility 类 + 加 !important
+   保留 accent-aurora 等强调色不动(两种 theme 都 OK) */
+html.theme-light {
+  color-scheme: light;
+}
+html.theme-light body { background-color: #FAFAFA; color: #0F1115; }
+html.theme-light .bg-bg-base { background-color: #FAFAFA !important; }
+html.theme-light .bg-bg-raised { background-color: #F0F1F4 !important; }
+html.theme-light .bg-bg-overlay { background-color: #E5E7EB !important; }
+html.theme-light .text-fg-primary { color: #0F1115 !important; }
+html.theme-light .text-fg-secondary { color: #4B5563 !important; }
+html.theme-light .text-fg-tertiary { color: #9CA3AF !important; }
+html.theme-light .border-divider { border-color: rgba(0,0,0,0.10) !important; }
+html.theme-light .ring-divider { --tw-ring-color: rgba(0,0,0,0.10) !important; }
+html.theme-light .text-bg-base { color: #FAFAFA !important; }     /* CTA 内字 */
+html.theme-light .bg-accent-aurora { background-color: #4FA875 !important; }
+html.theme-light input,
+html.theme-light select,
+html.theme-light textarea { background-color: #FFFFFF !important; color: #0F1115 !important; }
+
 html,
 body {
   @apply bg-bg-base text-fg-primary font-sans antialiased;
