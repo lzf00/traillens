@@ -286,11 +286,19 @@ def download_keeps_zip(
         buf.seek(0)
         yield buf.read()
 
-    safe_name = "".join(c for c in trail.name if c.isalnum() or c in "-_") or "trail"
+    # Content-Disposition header 必须 latin-1;中文 trail name 用 RFC 5987 编码
+    from urllib.parse import quote
+    ascii_fb = "".join(c for c in trail.name if c.isascii() and (c.isalnum() or c in "-_")) or "trail"
+    utf8_q = quote(f"{trail.name}_keeps.zip", safe="")
     return StreamingResponse(
         gen(),
         media_type="application/zip",
-        headers={"Content-Disposition": f'attachment; filename="{safe_name}_keeps.zip"'},
+        headers={
+            "Content-Disposition": (
+                f'attachment; filename="{ascii_fb}_keeps.zip"; '
+                f"filename*=UTF-8''{utf8_q}"
+            )
+        },
     )
 
 
