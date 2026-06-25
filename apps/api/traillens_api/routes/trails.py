@@ -251,6 +251,49 @@ def list_photos(
     return store.list_photos(trail_id, user_id=user.id)
 
 
+@router.get("/{trail_id}/download/keeps.zip")
+def download_keeps_zip(
+    trail_id: str,
+    user: CurrentUser = Depends(get_current_user),
+):
+    """下载该 trail 所有 verdict=keep 的原图 zip(stream,避免大内存)。"""
+    import io
+    import zipfile
+    import urllib.request
+    from fastapi.responses import StreamingResponse
+
+    trail = store.get_trail(trail_id, user_id=user.id)
+    if not trail:
+        raise HTTPException(404, "trail_not_found")
+    photos = [p for p in store.list_photos(trail_id, user_id=user.id) if p.verdict == "keep"]
+    if not photos:
+        raise HTTPException(404, "no_keep_photos")
+
+    def gen():
+        buf = io.BytesIO()
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+            for i, p in enumerate(photos, 1):
+                try:
+                    with urllib.request.urlopen(p.uri, timeout=20) as r:
+                        data = r.read()
+                except Exception:
+                    continue
+                ext = (p.uri.rsplit(".", 1)[-1] or "jpg").lower()[:5]
+                # 文件名按打分排序前缀,方便用户选片
+                overall = (p.aesthetic or {}).get("overall") if isinstance(p.aesthetic, dict) else None
+                score = f"{overall:.1f}_" if isinstance(overall, (int, float)) else ""
+                zf.writestr(f"{score}{i:03d}_{p.photo_id[:8]}.{ext}", data)
+        buf.seek(0)
+        yield buf.read()
+
+    safe_name = "".join(c for c in trail.name if c.isalnum() or c in "-_") or "trail"
+    return StreamingResponse(
+        gen(),
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}_keeps.zip"'},
+    )
+
+
 @router.get("/{trail_id}/photos/{photo_id}", response_model=PhotoOut)
 def get_photo(
     trail_id: str,

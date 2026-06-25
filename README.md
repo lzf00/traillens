@@ -4,15 +4,42 @@
 > 一个面向风光摄影师的**多智能体（multi-agent）助手**，核心是一个自研的**风光摄影美学评分模型**。
 
 <p align="center">
-  <a href="#-快速开始">快速开始</a> ·
-  <a href="#-架构">架构</a> ·
+  <strong>👉 <a href="https://traillens.zorotreeking.online/trails/demo">在线 Demo (免登录)</a></strong> ·
+  <a href="#-在线体验">快速开始</a> ·
+  <a href="#%EF%B8%8F-架构">架构</a> ·
   <a href="#-评估">评估</a> ·
-  <a href="#-路线图">路线图</a> ·
   <a href="docs/RESEARCH.md">研究笔记</a>
 </p>
 
-<!-- TODO: 30 秒 demo GIF 放这里。作品集第一印象，优先级最高。 -->
-<!-- TODO: Live demo 徽章 / HuggingFace Space 徽章 -->
+<p align="center">
+  <a href="https://traillens.zorotreeking.online">
+    <img alt="Live" src="https://img.shields.io/badge/Live-traillens.zorotreeking.online-6FBF8B?logo=icloud&logoColor=white" />
+  </a>
+  <img alt="Next.js" src="https://img.shields.io/badge/Next.js-15-black?logo=next.js" />
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-0.110+-009688?logo=fastapi&logoColor=white" />
+  <img alt="Postgres + pgvector" src="https://img.shields.io/badge/Postgres-pgvector-336791?logo=postgresql&logoColor=white" />
+  <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-multi--agent-FF6A00" />
+</p>
+
+<!-- TODO: 30 秒 demo GIF 放这里 -->
+
+## 🧪 在线体验
+
+> 不需要登录看完整 Trail:[**traillens.zorotreeking.online/trails/demo**](https://traillens.zorotreeking.online/trails/demo)
+
+想自己上传跑:
+1. 打开 [/signup](https://traillens.zorotreeking.online/signup) 注册(邮箱+密码,无验证)
+2. **/trails/new** 上传 5–20 张照片 → 服务端代理上传 COS,自动提 EXIF + 300px 缩略图
+3. Canvas 页点 **Run** → 豆包 Vision 逐张评分 + 写 critique + 生成游记 + 拍摄计划(约 15s/张)
+4. 跑完跳分享页,带 OG card 可一键转发小红书 / Twitter
+
+CLI 一键跑通(0 依赖,无 GPU):
+
+```bash
+git clone https://github.com/<you>/traillens.git && cd traillens
+python3 packages/agents/traillens_agents/demo.py     # 仅 stdlib,本地骨架
+python3 scripts/seed_demo.py --base http://localhost:8000  # 完整链路
+```
 
 ---
 

@@ -371,6 +371,13 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
               >
                 <Download size={12} /> 导出 JSON 备份
               </button>
+              <a
+                href={`/v1/trails/${trailId}/download/keeps.zip`}
+                onClick={() => setMenuOpen(false)}
+                className="flex items-center gap-2 w-full px-3 py-2 text-xs text-fg-secondary hover:bg-bg-overlay hover:text-fg-primary text-left"
+              >
+                <Download size={12} /> 下载 keep 原图 zip
+              </a>
               <div className="border-t border-divider my-1" />
               <button
                 onClick={() => { setMenuOpen(false); onDelete(); }}
