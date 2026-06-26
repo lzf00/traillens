@@ -248,9 +248,11 @@ async def stack_preview(
     from ..services.stacker import stack_median
     if len(files) < 2:
         raise HTTPException(400, "need at least 2 photos to stack")
-    if len(files) > 50:
-        raise HTTPException(400, "PoC limit: 50 photos max")
+    if len(files) > 200:
+        raise HTTPException(400, "max 200 photos per stack(超过分两次跑)")
 
+    # 逐张 read 然后 stack;~200 张 6MP * 4 bytes = 5GB,够堆栈中等机型。
+    # 真生产改 background task + 增量写。
     blobs = []
     for f in files:
         data = await f.read()
@@ -260,7 +262,10 @@ async def stack_preview(
     if not result:
         raise HTTPException(500, "stack failed (OpenCV missing or all decode failed)")
     return Response(content=result, media_type="image/jpeg",
-                    headers={"X-Stack-Frames": str(len(blobs))})
+                    headers={
+                        "X-Stack-Frames": str(len(blobs)),
+                        "Cache-Control": "no-store",
+                    })
 
 
 @router.post("/{trail_id}/photos:upload", status_code=202)
