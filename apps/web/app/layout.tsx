@@ -25,13 +25,15 @@ export const metadata: Metadata = {
   },
 };
 
-// 防 FOUC:在 hydration 之前同步设 html.theme-light
-// 必须 inline + 同步;Next 会把 dangerouslySetInnerHTML 放到 head 早执行
+// 防 FOUC:hydration 前同步设 html.theme-light
+// 支持三态:light / dark / auto(默认,跟 prefers-color-scheme)
 const THEME_BOOT = `
 (function() {
   try {
-    var t = localStorage.getItem('traillens_theme');
-    if (t === 'light') document.documentElement.classList.add('theme-light');
+    var t = localStorage.getItem('traillens_theme') || 'auto';
+    var light = t === 'light' || (t === 'auto' &&
+      window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches);
+    if (light) document.documentElement.classList.add('theme-light');
   } catch(e) {}
 })();
 `;

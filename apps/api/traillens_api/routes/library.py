@@ -34,6 +34,7 @@ class SearchResult(BaseModel):
 def search(
     q: str = Query(..., min_length=1, description="自然语言查询,如:川西秋天逆光"),
     limit: int = Query(20, ge=1, le=100),
+    offset: int = Query(0, ge=0, description="分页偏移(无限滚动用)"),
     trail_id: str | None = Query(None, description="可选:只搜该 trail 内"),
     user: CurrentUser = Depends(get_current_user),
 ) -> list[SearchResult]:
@@ -56,9 +57,9 @@ def search(
             WHERE t.user_id = :uid AND p.embedding IS NOT NULL
               {trail_filter}
             ORDER BY p.embedding <=> CAST(:v AS vector)
-            LIMIT :lim
+            LIMIT :lim OFFSET :off
         """)
-        params = dict(v=vec_str, uid=user.id, lim=limit)
+        params = dict(v=vec_str, uid=user.id, lim=limit, off=offset)
         if trail_id:
             params["tid"] = trail_id
         with db.session() as s:
@@ -99,9 +100,9 @@ def search(
               OR coalesce(t.travelogue_md, '') ILIKE :like
           )
         ORDER BY score DESC, p.created_at DESC
-        LIMIT :lim
+        LIMIT :lim OFFSET :off
     """)
-    params = dict(like=like, uid=user.id, lim=limit)
+    params = dict(like=like, uid=user.id, lim=limit, off=offset)
     if trail_id:
         params["tid"] = trail_id
     with db.session() as s:

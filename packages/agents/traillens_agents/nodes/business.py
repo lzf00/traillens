@@ -150,10 +150,16 @@ def story_node(state: GraphState) -> dict:
         # photo_id 是 UUID(36 字符)时截短只取头 8 位,看起来像"片段编号"
         pid = p.photo_id
         short_id = pid[:8] if len(pid) >= 32 and "-" in pid else pid
-        lines.append(
-            f"{i}. `{short_id}` — {p.exif.focal_length_mm}mm "
-            f"f/{p.exif.aperture_f} ISO{p.exif.iso}。{p.critique or ''}"
-        )
+        # EXIF 字段缺失时整段省略,别打印 "Nonemm f/None ISONone"
+        exif_bits = []
+        if p.exif.focal_length_mm:
+            exif_bits.append(f"{p.exif.focal_length_mm}mm")
+        if p.exif.aperture_f:
+            exif_bits.append(f"f/{p.exif.aperture_f}")
+        if p.exif.iso:
+            exif_bits.append(f"ISO{p.exif.iso}")
+        exif_str = " · ".join(exif_bits) + "。" if exif_bits else ""
+        lines.append(f"{i}. `{short_id}` — {exif_str}{p.critique or ''}")
     return {
         "travelogue_md": "\n".join(lines),
         "hike": hike,

@@ -6,7 +6,7 @@
  * URL query 支持 ?trail=<uuid>:进入页面时预选该 trail(从 Canvas 跳过来)。
  */
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Search, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -44,8 +44,11 @@ function LibraryInner() {
   const [trails, setTrails] = useState<Trail[]>([]);
   const [hits, setHits] = useState<Hit[]>([]);
   const [loading, setLoading] = useState(false);
+  const [hasMore, setHasMore] = useState(false);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMsg, setReindexMsg] = useState<string | null>(null);
+  const sentinelRef = useRef<HTMLDivElement | null>(null);
+  const PAGE = 30;
 
   // 加载用户全部 trails 给筛选下拉
   useEffect(() => {
@@ -55,23 +58,47 @@ function LibraryInner() {
       .catch(() => {});
   }, []);
 
-  // 防抖搜
+  const fetchPage = useCallback(async (offset: number, append: boolean) => {
+    setLoading(true);
+    const url = `/v1/library/search?q=${encodeURIComponent(q)}&limit=${PAGE}&offset=${offset}${
+      trailId ? `&trail_id=${trailId}` : ""
+    }`;
+    const r = await apiFetch(url);
+    if (r.ok) {
+      const arr: Hit[] = await r.json();
+      setHits((prev) => (append ? [...prev, ...arr] : arr));
+      setHasMore(arr.length === PAGE);
+    } else {
+      if (!append) setHits([]);
+      setHasMore(false);
+    }
+    setLoading(false);
+  }, [q, trailId]);
+
+  // 防抖搜 — 首页
   useEffect(() => {
     if (!q.trim()) {
       setHits([]);
+      setHasMore(false);
       return;
     }
-    const handle = setTimeout(async () => {
-      setLoading(true);
-      const url = `/v1/library/search?q=${encodeURIComponent(q)}&limit=30${
-        trailId ? `&trail_id=${trailId}` : ""
-      }`;
-      const r = await apiFetch(url);
-      if (r.ok) setHits(await r.json());
-      setLoading(false);
-    }, 300);
+    const handle = setTimeout(() => fetchPage(0, false), 300);
     return () => clearTimeout(handle);
-  }, [q, trailId]);
+  }, [q, trailId, fetchPage]);
+
+  // 无限滚动:sentinel 进 viewport 时加载下一页
+  useEffect(() => {
+    if (!hasMore || loading || !sentinelRef.current) return;
+    const el = sentinelRef.current;
+    const obs = new IntersectionObserver(
+      (entries) => {
+        if (entries[0].isIntersecting) fetchPage(hits.length, true);
+      },
+      { rootMargin: "200px" },
+    );
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [hasMore, loading, hits.length, fetchPage]);
 
   async function reindex() {
     if (reindexing) return;
@@ -196,6 +223,12 @@ function LibraryInner() {
         </div>
       )}
 
+      {!loading && hits.length > 0 && (
+        <p className="mono text-xs text-fg-tertiary mb-4">
+          {hits.length} 张 · {grouped.length} trail{hasMore ? " · 滚动加载更多" : ""}
+        </p>
+      )}
+
       {grouped.map((g) => (
         <section key={g.id} className="mb-10">
           <h2 className="font-display text-lg text-fg-primary mb-3 flex items-baseline gap-3">
@@ -238,6 +271,16 @@ function LibraryInner() {
           </div>
         </section>
       ))}
+
+      {/* 无限滚动 sentinel */}
+      {hits.length > 0 && (
+        <div ref={sentinelRef} className="h-12 flex items-center justify-center">
+          {loading && <span className="mono text-xs text-fg-tertiary">加载下一页…</span>}
+          {!loading && !hasMore && hits.length >= PAGE && (
+            <span className="mono text-xs text-fg-tertiary">— 已到底 —</span>
+          )}
+        </div>
+      )}
     </main>
   );
 }
