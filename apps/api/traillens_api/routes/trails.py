@@ -234,6 +234,35 @@ def add_photos(
     return {"accepted": n, "trail_id": trail_id}
 
 
+@router.post("/{trail_id}/stack:preview", status_code=200)
+async def stack_preview(
+    trail_id: str,
+    files: list[UploadFile] = File(...),
+    user: CurrentUser = Depends(get_current_user),
+):
+    """Direction B (Stargazer) PoC:N 张 multipart → median 堆栈 → 返回 jpg。
+
+    不入库,纯 stateless 预览。前端用 blob URL 显示。
+    """
+    from fastapi.responses import Response
+    from ..services.stacker import stack_median
+    if len(files) < 2:
+        raise HTTPException(400, "need at least 2 photos to stack")
+    if len(files) > 50:
+        raise HTTPException(400, "PoC limit: 50 photos max")
+
+    blobs = []
+    for f in files:
+        data = await f.read()
+        if data:
+            blobs.append(data)
+    result = stack_median(blobs)
+    if not result:
+        raise HTTPException(500, "stack failed (OpenCV missing or all decode failed)")
+    return Response(content=result, media_type="image/jpeg",
+                    headers={"X-Stack-Frames": str(len(blobs))})
+
+
 @router.post("/{trail_id}/photos:upload", status_code=202)
 async def upload_photos(
     trail_id: str,
