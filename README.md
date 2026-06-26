@@ -21,7 +21,22 @@
   <img alt="LangGraph" src="https://img.shields.io/badge/LangGraph-multi--agent-FF6A00" />
 </p>
 
-<!-- TODO: 30 秒 demo GIF 放这里 -->
+<p align="center">
+  <a href="https://traillens.zorotreeking.online/trails/demo">
+    <img src="docs/screenshots/demo.gif" alt="TrailLens 30s demo" width="80%" />
+  </a>
+</p>
+
+## 为什么做这个
+
+我喜欢徒步、拍风光。每次徒步回来 200 多张照片堆在硬盘里,**自己一张张选 / 标 / 写游记**
+吃掉一整个周末。如果 AI 能把"模糊+重复+废片"过一遍 + 给精选片写点评 + 拼游记,
+我就能把周末还给下次徒步。
+
+TrailLens 是这个尝试 — 也是一个**多智能体 + LangGraph + 自研美学评分**的工程练手项目。
+**[`docs/blog/005`](docs/blog/005-what-i-got-wrong.md) 诚实复盘了哪些初始假设被推翻**。
+
+> 如果你在招全栈 / AI / 多模态方向的人,或对架构有反馈,欢迎邮件:`liuzf [at] outlook.com`(占位)。
 
 ## 📸 截图速览
 
