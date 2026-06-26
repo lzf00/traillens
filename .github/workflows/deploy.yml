@@ -1,9 +1,11 @@
 name: Deploy
 
+# 实际部署走 Tencent CVM + docker-compose(手动 ssh)。
+# 这个 workflow 配的是 Fly.io / Vercel,保留代码作为以后海外部署的 fallback,
+# 但**不在 push 自动触发**(避免每次 commit 都 fail 报警)。
+# 触发:GitHub Actions UI → Deploy → Run workflow。
 on:
-  push:
-    branches: [main]
-  workflow_dispatch:  # 手动触发(panic deploy)
+  workflow_dispatch:
 
 # 同时只跑一个 deploy,防止前后版本互相覆盖
 concurrency:

@@ -42,3 +42,34 @@ SENTRY_DSN=https://...@sentry.io/...
 ```
 
 代码里 `init_sentry(app)` 在 `apps/api/main.py` 已调，配上即生效。
+
+---
+
+## 验证脚本（smoke test）
+
+在 api 容器里直接测 Langfuse client 是否 init 成功：
+
+```bash
+ssh root@110.40.142.199 'docker exec traillens-api python -c "
+import sys; sys.path.insert(0, \"/app/api\")
+from traillens_api.services.observability import langfuse_client
+c = langfuse_client()
+print(\"client:\", type(c).__name__ if c else \"None(env 未配齐或 SDK 未装)\")
+if c:
+    c.trace(id=\"smoke-test\", name=\"observability_check\")
+    c.flush()
+    print(\"trace 已发,去 Langfuse 控制台搜 smoke-test\")
+"'
+```
+
+期望 `client: Langfuse` + Langfuse 控制台能看到 trace。
+
+## 当前状态（线上 traillens.zorotreeking.online）
+
+| 服务 | 代码就绪 | env 已填 | 实际生效 |
+|---|---|---|---|
+| **Langfuse** | ✅ | ⚠️ (env 占位为空) | ❌ — 需要去 cloud.langfuse.com 注册 → 把 pk/sk 写进 /opt/traillens/.env |
+| **Sentry** | ✅ | ❌ | ❌ — 需要去 sentry.io 拿 DSN → 同上 |
+| **PostHog** (server-side) | ✅ | ❌ | ❌ |
+
+凭证填完后 `docker compose up -d api` 即可生效,代码 0 改动。
