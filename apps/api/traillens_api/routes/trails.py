@@ -21,6 +21,7 @@ from fastapi.responses import RedirectResponse
 
 from ..services import storage, store
 from ..services.orchestrator import run_trail_stream
+from ..services.store_protocol import default_store
 
 router = APIRouter()
 
@@ -30,8 +31,8 @@ def create_trail(
     body: TrailCreate,
     user: CurrentUser = Depends(get_current_user),
 ) -> TrailOut:
-    trail = store.create_trail(user_id=user.id, **body.model_dump())
-    return trail
+    # 走 protocol 层,底层仍是 store.create_trail
+    return default_store().create_resource(user_id=user.id, **body.model_dump())
 
 
 @router.get("", response_model=list[TrailOut])
@@ -39,7 +40,7 @@ def list_trails(
     limit: int = 50,
     user: CurrentUser = Depends(get_current_user),
 ) -> list[TrailOut]:
-    return store.list_trails(user_id=user.id, limit=limit)
+    return default_store().list_resources(user_id=user.id, limit=limit)
 
 
 @router.get("/_health")
@@ -88,7 +89,7 @@ def get_trail(
     trail_id: str,
     user: CurrentUser = Depends(get_current_user),
 ) -> TrailOut:
-    trail = store.get_trail(trail_id, user_id=user.id)
+    trail = default_store().get_resource(trail_id, user_id=user.id)
     if not trail:
         raise HTTPException(404, "trail_not_found")
     return trail
@@ -261,9 +262,16 @@ async def stack_preview(
     result = stack_median(blobs)
     if not result:
         raise HTTPException(500, "stack failed (OpenCV missing or all decode failed)")
+    # 用 critic 节点给成品打分,分数塞 response header 前端展示
+    from ..services.stacker import critic_stack
+    metrics = critic_stack(result)
     return Response(content=result, media_type="image/jpeg",
                     headers={
                         "X-Stack-Frames": str(len(blobs)),
+                        "X-Stack-Overall": str(metrics.get("overall") or ""),
+                        "X-Stack-SNR-dB": str(metrics.get("snr_db") or ""),
+                        "X-Stack-Star-Roundness": str(metrics.get("star_roundness") or ""),
+                        "Access-Control-Expose-Headers": "X-Stack-Frames,X-Stack-Overall,X-Stack-SNR-dB,X-Stack-Star-Roundness",
                         "Cache-Control": "no-store",
                     })
 

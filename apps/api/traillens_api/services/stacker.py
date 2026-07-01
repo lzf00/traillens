@@ -74,6 +74,67 @@ def triage_frame(data: bytes, max_side: int = 800) -> dict[str, Any]:
     }
 
 
+def critic_stack(result: bytes) -> dict[str, Any]:
+    """对堆栈成品打分。用于 stargazer 的 critic 节点。
+
+    指标:
+      snr_db     信噪比(dB) — 亮部方差 / 暗部方差
+      star_roundness  平均星点圆度(1.0 = 完美圆,<0.6 = 拖影)
+      dynamic_range   高低灰度差(0-255)
+      overall    综合 0-10
+
+    快速算法(全在 gray 图上,不精确但一致):
+      1. 找 top 1% 最亮的点当"星点候选"
+      2. 对每个 blob 算 (面积)/(π·r²)
+    """
+    fallback = {"snr_db": None, "star_roundness": None, "dynamic_range": None, "overall": None}
+    if cv2 is None:
+        return fallback
+    arr = np.frombuffer(result, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        return fallback
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    # dynamic range: 5%-95% 分位差
+    lo, hi = np.percentile(gray, [5, 95])
+    dr = float(hi - lo)
+
+    # SNR: 暗背景 var vs 亮点 var,dB
+    dark_mask = gray < np.percentile(gray, 50)
+    bright_mask = gray > np.percentile(gray, 95)
+    dark_var = float(gray[dark_mask].var()) if dark_mask.any() else 1.0
+    bright_var = float(gray[bright_mask].var()) if bright_mask.any() else 1.0
+    snr_db = float(10 * np.log10(bright_var / max(dark_var, 1.0)))
+
+    # 星点圆度: threshold + contour
+    _, binmask = cv2.threshold(gray, int(np.percentile(gray, 99)), 255, cv2.THRESH_BINARY)
+    contours, _ = cv2.findContours(binmask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    roundnesses = []
+    for c in contours[:200]:
+        area = cv2.contourArea(c)
+        peri = cv2.arcLength(c, True)
+        if area > 3 and peri > 0:
+            # 4π·area / peri² = 1 for perfect circle
+            r = 4 * np.pi * area / (peri * peri)
+            if 0 < r <= 1.5:
+                roundnesses.append(r)
+    star_r = float(np.mean(roundnesses)) if roundnesses else 0.0
+
+    # 综合:snr 权重 0.4,roundness 0.4,dynamic range 0.2
+    snr_norm = max(0, min(1, snr_db / 40.0))
+    r_norm = max(0, min(1, star_r))
+    dr_norm = max(0, min(1, dr / 200.0))
+    overall = round((snr_norm * 0.4 + r_norm * 0.4 + dr_norm * 0.2) * 10, 2)
+
+    return {
+        "snr_db": round(snr_db, 1),
+        "star_roundness": round(star_r, 3),
+        "dynamic_range": round(dr, 1),
+        "overall": overall,
+    }
+
+
 def stack_median(images: Iterable[bytes], max_side: int = 1600) -> bytes | None:
     """按 median 合成 N 张照片,先平移对齐第 1 张。
 
