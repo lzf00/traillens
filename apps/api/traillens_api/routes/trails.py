@@ -268,6 +268,39 @@ async def stack_preview(
                     })
 
 
+@router.post("/{trail_id}/stack:triage")
+async def stack_triage(
+    trail_id: str,
+    files: list[UploadFile] = File(...),
+    user: CurrentUser = Depends(get_current_user),
+) -> dict:
+    """Direction B: 逐张 frame-triage 分档,不合成,不落库。
+
+    返回每张的 verdict/blur/exposure 指标,前端展示 keep/reject 列表 → 用户
+    再决定送哪些进 :preview 合成。
+    """
+    from ..services.stacker import triage_frame
+    if len(files) < 1:
+        raise HTTPException(400, "need >=1 photo")
+    if len(files) > 200:
+        raise HTTPException(400, "max 200 per triage")
+
+    out = []
+    for f in files:
+        data = await f.read()
+        r = triage_frame(data) if data else {"verdict": "reject", "reason": "empty"}
+        r["filename"] = f.filename
+        r["size"] = len(data)
+        out.append(r)
+    keeps = sum(1 for r in out if r["verdict"] == "keep")
+    return {
+        "total": len(out),
+        "keeps": keeps,
+        "rejects": len(out) - keeps,
+        "frames": out,
+    }
+
+
 @router.post("/{trail_id}/photos:upload", status_code=202)
 async def upload_photos(
     trail_id: str,

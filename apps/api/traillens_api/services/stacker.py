@@ -15,7 +15,7 @@
 from __future__ import annotations
 
 import io
-from typing import Iterable
+from typing import Any, Iterable
 
 import numpy as np  # type: ignore
 
@@ -23,6 +23,55 @@ try:
     import cv2  # type: ignore
 except ImportError:
     cv2 = None  # type: ignore
+
+
+def triage_frame(data: bytes, max_side: int = 800) -> dict[str, Any]:
+    """对单张 frame 打技术分,返回 keep/reject 建议。
+
+    检测:
+      - blur_score (拉普拉斯方差,<80 通常模糊)
+      - exposure_over_pct (>0.4 = 云/雾/过曝)
+      - exposure_under_pct (<0.2 但 blur 也低 = 无信号帧)
+      - mean_brightness (辅助判断)
+
+    verdict: 'keep' | 'blur' | 'cloud' | 'underexposed'
+    """
+    if cv2 is None:
+        return {"verdict": "keep", "reason": "opencv 未装,跳过检测"}
+    arr = np.frombuffer(data, dtype=np.uint8)
+    img = cv2.imdecode(arr, cv2.IMREAD_COLOR)
+    if img is None:
+        return {"verdict": "reject", "reason": "decode 失败"}
+    h, w = img.shape[:2]
+    scale = max_side / max(h, w) if max(h, w) > max_side else 1.0
+    if scale < 1.0:
+        img = cv2.resize(img, (int(w * scale), int(h * scale)))
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+
+    blur = float(cv2.Laplacian(gray, cv2.CV_64F).var())
+    hist = cv2.calcHist([gray], [0], None, [256], [0, 256]).flatten()
+    total = hist.sum() or 1.0
+    over = float(hist[220:].sum() / total)
+    under = float(hist[:20].sum() / total)
+    brightness = float(gray.mean())
+
+    if over > 0.4:
+        verdict, reason = "cloud", f"over_pct={over:.2f} > 0.4(疑云/过曝)"
+    elif blur < 80:
+        verdict, reason = "blur", f"blur={blur:.0f} < 80"
+    elif under > 0.6 and blur < 200:
+        verdict, reason = "underexposed", f"under_pct={under:.2f} + blur={blur:.0f}"
+    else:
+        verdict, reason = "keep", "OK"
+
+    return {
+        "verdict": verdict,
+        "reason": reason,
+        "blur_score": round(blur, 1),
+        "exposure_over_pct": round(over, 3),
+        "exposure_under_pct": round(under, 3),
+        "mean_brightness": round(brightness, 1),
+    }
 
 
 def stack_median(images: Iterable[bytes], max_side: int = 1600) -> bytes | None:

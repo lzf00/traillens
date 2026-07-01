@@ -44,6 +44,8 @@ COPY --chown=app:app apps/api/ /app/api/
 COPY --chown=app:app packages/agents/ /app/packages/agents/
 COPY --chown=app:app packages/aesthetic/ /app/packages/aesthetic/
 COPY --chown=app:app packages/mcp_servers/ /app/packages/mcp_servers/
+# examples/recipe-helper 里的 agents 被 routes/recipe.py 动态 import
+COPY --chown=app:app examples/ /app/examples/
 
 USER app
 

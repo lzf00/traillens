@@ -10,10 +10,19 @@
  */
 
 import { useState } from "react";
-import { Upload, Image as ImageIcon, X, AlertCircle, Download } from "lucide-react";
+import { Upload, Image as ImageIcon, X, AlertCircle, Download, Filter, Check, XCircle } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
+
+type TriageFrame = {
+  filename: string;
+  verdict: "keep" | "blur" | "cloud" | "underexposed" | "reject";
+  reason: string;
+  blur_score?: number;
+  exposure_over_pct?: number;
+  exposure_under_pct?: number;
+};
 
 export default function StackNewPage() {
   const [files, setFiles] = useState<File[]>([]);
@@ -21,11 +30,52 @@ export default function StackNewPage() {
   const [resultUrl, setResultUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [frameCount, setFrameCount] = useState<number | null>(null);
+  const [triage, setTriage] = useState<TriageFrame[] | null>(null);
 
   function addFiles(fl: FileList | null) {
     if (!fl) return;
     const incoming = Array.from(fl).filter((f) => f.type.startsWith("image/"));
     setFiles((prev) => [...prev, ...incoming]);
+  }
+
+  async function runTriage() {
+    if (files.length < 1) return;
+    setBusy(true);
+    setError(null);
+    setTriage(null);
+
+    const tres = await apiFetch("/v1/trails", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name: `Triage ${new Date().toISOString().slice(0, 16)}`, location_name: null, gpx_uri: null }),
+    });
+    if (!tres.ok) {
+      setError("先登录");
+      setBusy(false);
+      return;
+    }
+    const trail = await tres.json();
+
+    const form = new FormData();
+    for (const f of files) form.append("files", f, f.name);
+    const res = await apiFetch(`/v1/trails/${trail.id}/stack:triage`, { method: "POST", body: form });
+    if (!res.ok) {
+      setError(`triage 失败 HTTP ${res.status}`);
+      apiFetch(`/v1/trails/${trail.id}`, { method: "DELETE" }).catch(() => {});
+      setBusy(false);
+      return;
+    }
+    const data = await res.json();
+    setTriage(data.frames);
+    apiFetch(`/v1/trails/${trail.id}`, { method: "DELETE" }).catch(() => {});
+    setBusy(false);
+  }
+
+  function useKeeps() {
+    if (!triage) return;
+    const keepNames = new Set(triage.filter((t) => t.verdict === "keep").map((t) => t.filename));
+    setFiles((prev) => prev.filter((f) => keepNames.has(f.name)));
+    setTriage(null);
   }
 
   async function submit() {
@@ -126,13 +176,61 @@ export default function StackNewPage() {
           </div>
         )}
 
-        <button
-          onClick={submit}
-          disabled={busy || files.length < 2}
-          className="rounded-md bg-accent-aurora px-4 py-2.5 text-sm font-medium text-bg-base hover:bg-accent-aurora/90 disabled:opacity-50 transition-colors"
-        >
-          {busy ? `堆栈中…(${files.length} 张,约 ${Math.ceil(files.length * 0.5)}s)` : `堆栈 ${files.length} 张`}
-        </button>
+        <div className="flex gap-2">
+          <button
+            onClick={runTriage}
+            disabled={busy || files.length < 1}
+            className="flex-1 rounded-md border border-divider px-4 py-2.5 text-sm text-fg-primary hover:border-accent-glacier hover:text-accent-glacier disabled:opacity-50 transition-colors flex items-center justify-center gap-2"
+          >
+            <Filter size={14} />
+            {busy ? "分档中…" : `先分档 ${files.length} 张(过滤 blur/云)`}
+          </button>
+          <button
+            onClick={submit}
+            disabled={busy || files.length < 2}
+            className="flex-1 rounded-md bg-accent-aurora px-4 py-2.5 text-sm font-medium text-bg-base hover:bg-accent-aurora/90 disabled:opacity-50 transition-colors"
+          >
+            {busy ? `堆栈中…(${files.length} 张)` : `堆栈 ${files.length} 张`}
+          </button>
+        </div>
+
+        {triage && (
+          <div className="rounded-md border border-divider bg-bg-raised p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="mono text-fg-secondary">
+                分档结果:{triage.filter((t) => t.verdict === "keep").length} keep /{" "}
+                {triage.length - triage.filter((t) => t.verdict === "keep").length} 剔
+              </h3>
+              <button
+                onClick={useKeeps}
+                className="text-xs text-accent-aurora hover:underline"
+              >
+                只留 keep 那些 →
+              </button>
+            </div>
+            <ul className="flex flex-col gap-1 max-h-72 overflow-auto">
+              {triage.map((t, i) => {
+                const isKeep = t.verdict === "keep";
+                return (
+                  <li
+                    key={i}
+                    className={
+                      "flex items-center gap-2 rounded px-2 py-1 text-xs " +
+                      (isKeep ? "text-fg-secondary" : "text-fg-tertiary line-through")
+                    }
+                  >
+                    {isKeep
+                      ? <Check size={12} className="text-accent-aurora shrink-0" />
+                      : <XCircle size={12} className="text-accent-danger shrink-0" />}
+                    <span className="flex-1 truncate">{t.filename}</span>
+                    <span className="mono">{t.verdict}</span>
+                    {t.blur_score != null && <span className="mono">blur={t.blur_score}</span>}
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
 
         {resultUrl && (
           <div className="rounded-md border border-divider bg-bg-raised p-4">
