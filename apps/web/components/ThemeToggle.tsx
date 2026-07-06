@@ -41,7 +41,13 @@ export function ThemeToggle() {
   }, []);
 
   function cycle() {
-    const next: Theme = theme === "auto" ? "light" : theme === "light" ? "dark" : "auto";
+    // 用 localStorage 作 source of truth,防 React state 异步 / stale closure
+    let cur: Theme = theme;
+    try {
+      const v = localStorage.getItem("traillens_theme");
+      if (v === "light" || v === "dark" || v === "auto") cur = v;
+    } catch {}
+    const next: Theme = cur === "auto" ? "light" : cur === "light" ? "dark" : "auto";
     setTheme(next);
     applyTheme(next);
     try { localStorage.setItem("traillens_theme", next); } catch {}
