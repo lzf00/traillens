@@ -11,6 +11,9 @@
    保留 accent-aurora 等强调色不动(两种 theme 都 OK) */
 html.theme-light {
   color-scheme: light;
+  /* html 自己也必须上背景色,否则 body 高度不满视口时,视口下半会露出 html
+     元素的深色默认背景(bg-bg-base=#0F1115) */
+  background-color: #FAFAFA;
 }
 html.theme-light body { background-color: #FAFAFA; color: #0F1115; }
 html.theme-light .bg-bg-base { background-color: #FAFAFA !important; }
@@ -31,6 +34,11 @@ html,
 body {
   @apply bg-bg-base text-fg-primary font-sans antialiased;
   font-feature-settings: "ss01", "cv11";
+}
+/* body 至少铺满视口高度,防止内容不足时露出 html 底色 */
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
 }
 
 /* 照片永远显示原比例 + 1px 内边框 */
