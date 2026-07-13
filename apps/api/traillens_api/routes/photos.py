@@ -21,15 +21,18 @@ def download_photo(
     photo_id: str,
     user: CurrentUser = Depends(get_current_user),
 ) -> RedirectResponse:
-    """302 到 R2 presigned URL — 客户端直接从 R2 拉,省 api 带宽。"""
-    # TODO Sprint 5: store 加 get_photo_by_id 直接按 id 查;
-    # 当前 in-memory 模式 store 按 trail 索引,这里先 demo
-    # 用 stub 返回 placeholder
+    """302 到 COS presigned URL — 客户端直接从 COS 拉,省 api 带宽。
+
+    强制 owner 校验:JOIN photos+trails 确认 photo 属于 user,否则 404
+    (不返 403,避免枚举 photo_id 的攻击)。
+    """
+    info = store.get_photo_owned(photo_id, user_id=user.id)
+    if not info:
+        raise HTTPException(404, "photo_not_found")
     key = storage.make_object_key(
-        user_id=user.id, trail_id="unknown", photo_id=photo_id, ext="jpg",
+        user_id=user.id, trail_id=info["trail_id"], photo_id=photo_id, ext=info["ext"],
     )
     url = storage.presign("get", key, expires=900)
     if not url:
-        # R2 未配 → 给 placeholder 占位图(让 LR 插件不崩)
         raise HTTPException(503, {"error": "storage_not_configured"})
     return RedirectResponse(url, status_code=302)

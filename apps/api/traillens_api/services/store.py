@@ -113,6 +113,36 @@ def update_photo(
                              verdict=verdict, aesthetic=aesthetic, critique=critique)
 
 
+def get_photo_owned(photo_id: str, *, user_id: str) -> dict | None:
+    """按 photo_id 查照片 + 强制校验 owner(routes/photos.py download 用)。
+
+    返回 {"trail_id": ..., "uri": ..., "ext": ...} 或 None(不存在/无权限)。
+    """
+    if not db.has_db():
+        # in-memory:走全表扫描
+        for tid, plist in _PHOTOS.items():
+            trail = _TRAILS.get(tid)
+            if not trail or trail.user_id != user_id:
+                continue
+            for p in plist:
+                if p.photo_id == photo_id:
+                    ext = (p.uri or "").rsplit(".", 1)[-1] if "." in (p.uri or "") else "jpg"
+                    return {"trail_id": tid, "uri": p.uri, "ext": ext}
+        return None
+    sql = _text("""
+        SELECT p.id, p.trail_id, p.uri
+        FROM photos p
+        JOIN trails t ON t.id = p.trail_id
+        WHERE p.id = :pid AND t.user_id = :uid
+    """)
+    with db.session() as s:
+        row = s.execute(sql, dict(pid=photo_id, uid=user_id)).first()
+        if not row:
+            return None
+        ext = (row.uri or "").rsplit(".", 1)[-1] if "." in (row.uri or "") else "jpg"
+        return {"trail_id": str(row.trail_id), "uri": row.uri, "ext": ext}
+
+
 def delete_photo(trail_id: str, photo_id: str, *, user_id: str) -> list[str]:
     """删单张照片,返回被删的 uri 列表(原图 + 缩略图,供 caller 清 COS)。"""
     if db.has_db():

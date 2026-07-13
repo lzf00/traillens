@@ -10,6 +10,43 @@ import uuid
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from fastapi.responses import StreamingResponse
 
+import os as _os
+
+# 上传大小上限:单张 50MB、单批总量 200MB(env 可配)
+# 攻击者可用巨图打爆内存 → 每张 read 完立刻 len(data) 校验,超限即拒
+MAX_UPLOAD_BYTES = int(_os.environ.get("MAX_UPLOAD_BYTES", str(50 * 1024 * 1024)))
+MAX_BATCH_BYTES = int(_os.environ.get("MAX_BATCH_BYTES", str(200 * 1024 * 1024)))
+# MIME 白名单:magic-bytes 校验(防 content_type 伪造)
+_MAGIC = {
+    b"\xff\xd8\xff":       "image/jpeg",
+    b"\x89PNG\r\n\x1a\n":  "image/png",
+    b"RIFF":               "image/webp",   # 前 4 字节;完整还要 offset 8 = WEBP
+    b"GIF87a":             "image/gif",
+    b"GIF89a":             "image/gif",
+}
+
+
+def _sniff_mime(data: bytes) -> str | None:
+    for magic, mime in _MAGIC.items():
+        if data.startswith(magic):
+            if mime == "image/webp" and data[8:12] != b"WEBP":
+                continue
+            return mime
+    return None
+
+
+async def _read_bounded(f: UploadFile, per_file_max: int = MAX_UPLOAD_BYTES) -> bytes:
+    """安全 read:超过 per_file_max 立刻抛 413。"""
+    data = await f.read()
+    if len(data) > per_file_max:
+        raise HTTPException(413, {
+            "error": "file_too_large",
+            "filename": f.filename,
+            "size": len(data),
+            "max": per_file_max,
+        })
+    return data
+
 from ..deps import CurrentUser, check_quota, get_current_user
 from ..schemas import (
     PhotoBulkIn,
@@ -255,8 +292,12 @@ async def stack_preview(
     # 逐张 read 然后 stack;~200 张 6MP * 4 bytes = 5GB,够堆栈中等机型。
     # 真生产改 background task + 增量写。
     blobs = []
+    total = 0
     for f in files:
-        data = await f.read()
+        data = await _read_bounded(f)
+        total += len(data)
+        if total > MAX_BATCH_BYTES:
+            raise HTTPException(413, {"error": "batch_too_large", "max": MAX_BATCH_BYTES})
         if data:
             blobs.append(data)
     result = stack_median(blobs)
@@ -294,8 +335,12 @@ async def stack_triage(
         raise HTTPException(400, "max 200 per triage")
 
     out = []
+    total = 0
     for f in files:
-        data = await f.read()
+        data = await _read_bounded(f)
+        total += len(data)
+        if total > MAX_BATCH_BYTES:
+            raise HTTPException(413, {"error": "batch_too_large", "max": MAX_BATCH_BYTES})
         r = triage_frame(data) if data else {"verdict": "reject", "reason": "empty"}
         r["filename"] = f.filename
         r["size"] = len(data)
@@ -330,14 +375,24 @@ async def upload_photos(
 
     photos: list[PhotoIn] = []
     failed = []
+    total = 0
     for f in files:
-        ext = (f.filename or "").rsplit(".", 1)[-1] if f.filename and "." in f.filename else "jpg"
+        data = await _read_bounded(f)
+        total += len(data)
+        if total > MAX_BATCH_BYTES:
+            raise HTTPException(413, {"error": "batch_too_large", "max": MAX_BATCH_BYTES})
+        # magic-bytes 校验:不认可扩展名/content_type
+        sniffed = _sniff_mime(data)
+        if not sniffed:
+            failed.append(f.filename)
+            continue
+        # ext 用 sniffed MIME 决定,防路径伪造
+        ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}.get(sniffed, "jpg")
         photo_id = str(uuid.uuid4())
         key = storage.make_object_key(
             user_id=user.id, trail_id=trail_id, photo_id=photo_id, ext=ext,
         )
-        data = await f.read()
-        uri = storage.put_object(key, data, content_type=f.content_type or "image/jpeg")
+        uri = storage.put_object(key, data, content_type=sniffed)
         if not uri:
             failed.append(f.filename)
             continue

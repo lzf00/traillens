@@ -91,32 +91,38 @@ def critic_node(state: GraphState) -> dict:
 
     photos = [p.model_copy(deep=True) for p in state.photos]
     for p in photos:
-        if p.verdict == PhotoVerdict.KEEP and p.aesthetic is not None:
-            a = p.aesthetic
-            weakest = min(
-                [("构图", a.composition), ("技术执行", a.technical), ("情感", a.emotion)],
-                key=lambda x: x[1],
-            )
-            # 接豆包 / DeepSeek;失败 / 离线 fallback 到规则文案
-            llm_out = llm_chat(
-                purpose="critic",
-                messages=[
-                    {"role": "system", "content":
-                        "你是一位资深风光摄影评审,语言克制有洞察。每次回复不超过 80 字。"},
-                    {"role": "user", "content":
-                        f"照片 EXIF: {p.exif.focal_length_mm}mm f/{p.exif.aperture_f} "
-                        f"ISO{p.exif.iso}。8 维评分: overall={a.overall} "
-                        f"构图={a.composition} 视觉={a.visual_elements} 技术={a.technical} "
-                        f"原创={a.originality} 主题={a.theme} 情感={a.emotion} 格式塔={a.gestalt}。"
-                        f"请给一段简短点评 + 一条下次改进建议。"},
-                ],
-                max_tokens=1024,   # 豆包 thinking 模型 reasoning 占大半,要给足
-                temperature=0.6,
-            )
-            p.critique = llm_out or (
-                f"综合 {a.overall}/10。亮点在视觉元素({a.visual_elements})与"
-                f"格式塔({a.gestalt})。可提升:{weakest[0]}({weakest[1]})。"
-                f"建议下次在 {p.exif.focal_length_mm}mm 焦段尝试调整前景平衡。"
+        if p.verdict != PhotoVerdict.KEEP or p.aesthetic is None:
+            continue
+        # 去重:已有 critique 的照片不重跑(重跑 Run 时省 5x 成本)
+        if p.critique:
+            continue
+        a = p.aesthetic
+        weakest = min(
+            [("构图", a.composition), ("技术执行", a.technical), ("情感", a.emotion)],
+            key=lambda x: x[1],
+        )
+        # 接豆包文本模型(不用 vision — 前面 audit 发现 critic 只喂 EXIF+分数
+        # 没喂 image_url,继续走 vision 白付溢价)
+        llm_out = llm_chat(
+            purpose="critic_text",   # llm.py 里映射到 doubao-seed-1-6-thinking
+            messages=[
+                {"role": "system", "content":
+                    "你是一位资深风光摄影评审,语言克制有洞察。每次回复不超过 80 字。"},
+                {"role": "user", "content":
+                    f"照片 EXIF: {p.exif.focal_length_mm}mm f/{p.exif.aperture_f} "
+                    f"ISO{p.exif.iso}。8 维评分: overall={a.overall} "
+                    f"构图={a.composition} 视觉={a.visual_elements} 技术={a.technical} "
+                    f"原创={a.originality} 主题={a.theme} 情感={a.emotion} 格式塔={a.gestalt}。"
+                    f"请给一段简短点评 + 一条下次改进建议。"},
+            ],
+            max_tokens=512,   # thinking 模型 reasoning 占大半,给 512 够回 80 字
+            temperature=0.6,
+        )
+        # 长度护栏 + strip:防 LLM 输出超长或前后空白
+        p.critique = (llm_out or "").strip()[:400] or (
+            f"综合 {a.overall}/10。亮点在视觉元素({a.visual_elements})与"
+            f"格式塔({a.gestalt})。可提升:{weakest[0]}({weakest[1]})。"
+            f"建议下次在 {p.exif.focal_length_mm}mm 焦段尝试调整前景平衡。"
             )
     return {
         "photos": photos,
