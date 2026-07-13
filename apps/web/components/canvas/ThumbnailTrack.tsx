@@ -50,7 +50,7 @@ export function ThumbnailTrack({
 }) {
   const fileInput = useRef<HTMLInputElement>(null);
   return (
-    <aside className="flex w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-divider bg-bg-base p-2">
+    <aside className="flex w-full md:w-56 shrink-0 flex-col gap-1 overflow-y-auto border-r border-divider bg-bg-base p-2 max-h-40 md:max-h-none">
       <div className="flex items-center justify-between mb-2 px-2">
         <h2 className="mono">缩略图 · {items.length}</h2>
         {onAppend && (

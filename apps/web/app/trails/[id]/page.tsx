@@ -326,7 +326,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   return (
     <div className="flex h-dvh flex-col">
       {/* Header */}
-      <header className="flex items-center justify-between border-b border-divider px-4 py-3">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-divider px-4 py-3">
         <div className="flex items-center gap-3 flex-1 min-w-0">
           <InlineEdit
             value={trailName || `Trail · ${trailId.slice(0, 8)}`}
@@ -418,7 +418,7 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
       </header>
 
       {/* Body */}
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-col md:flex-row flex-1 overflow-hidden">
         <ThumbnailTrack
           items={photos}
           selectedId={selected?.photo_id}
@@ -551,7 +551,7 @@ function RightPanel({
   ];
   const [active, setActive] = useState<"trace" | "story" | "plan">("trace");
   return (
-    <aside className="flex w-96 shrink-0 flex-col border-l border-divider bg-bg-base">
+    <aside className="hidden md:flex w-96 shrink-0 flex-col border-l border-divider bg-bg-base">
       <div className="flex border-b border-divider">
         {tabs.map((t) => (
           <button

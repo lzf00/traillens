@@ -8,6 +8,7 @@
 // 强制每请求 SSR — 读 cookie + 拉用户专属数据,不能被静态缓存
 export const dynamic = "force-dynamic";
 
+import Image from "next/image";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { apiFetch } from "@/lib/api";
@@ -87,14 +88,14 @@ export default async function TrailsPage() {
               href={`/trails/${t.id}`}
               className="group block rounded-md overflow-hidden border border-divider bg-bg-raised hover:border-accent-aurora transition-colors"
             >
-              <div className="aspect-[3/2] w-full overflow-hidden bg-bg-overlay">
+              <div className="relative aspect-[3/2] w-full overflow-hidden bg-bg-overlay">
                 {t.cover_uri ? (
-                  // eslint-disable-next-line @next/next/no-img-element
-                  <img
+                  <Image
                     src={t.cover_uri}
                     alt={t.name}
-                    loading="lazy"
-                    className="h-full w-full object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.02]"
+                    fill
+                    sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    className="object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.02]"
                   />
                 ) : (
                   <div className="flex h-full w-full items-center justify-center font-display text-2xl text-fg-tertiary">

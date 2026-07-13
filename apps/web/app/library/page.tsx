@@ -7,6 +7,7 @@
  */
 
 import { Suspense, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Image from "next/image";
 import { useSearchParams } from "next/navigation";
 import { Search, RefreshCw } from "lucide-react";
 import { apiFetch } from "@/lib/api";
@@ -247,12 +248,12 @@ function LibraryInner() {
                 href={`/trails/${h.trail_id}`}
                 className="photo-frame aspect-square bg-bg-overlay relative group block overflow-hidden"
               >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={h.uri}
                   alt=""
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.03]"
+                  fill
+                  sizes="(max-width: 768px) 50vw, (max-width: 1024px) 33vw, 25vw"
+                  className="object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.03]"
                 />
                 {h.verdict && (
                   <span className="absolute top-2 left-2 status-pill backdrop-blur text-xs">

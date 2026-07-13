@@ -11,6 +11,7 @@
  */
 
 import type { Metadata } from "next";
+import Image from "next/image";
 import { notFound } from "next/navigation";
 
 // 分享页不需要登录,SSR 直接走 server-side 内网 URL,不走 apiFetch
@@ -133,11 +134,13 @@ export default async function SharePage({ params }: PageProps) {
       {/* Hero 大图: 全屏宽,带遮罩 + 标题叠加 */}
       {hero && (
         <section className="relative w-full h-[70vh] min-h-[480px] overflow-hidden bg-bg-overlay">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
+          <Image
             src={hero.uri}
             alt={trail.name}
-            className="absolute inset-0 h-full w-full object-cover"
+            fill
+            priority
+            sizes="100vw"
+            className="object-cover"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-bg-base via-bg-base/30 to-transparent" />
           <div className="absolute inset-x-0 bottom-0 px-6 py-12 md:px-16">
@@ -176,12 +179,12 @@ export default async function SharePage({ params }: PageProps) {
           <section className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
             {rest.map((p) => (
               <figure key={p.photo_id} className="photo-frame relative aspect-[3/2] bg-bg-overlay overflow-hidden">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
+                <Image
                   src={p.uri}
                   alt={`${trail.name} — ${p.photo_id}`}
-                  loading="lazy"
-                  className="h-full w-full object-cover transition-transform duration-DEFAULT ease-trail hover:scale-[1.03]"
+                  fill
+                  sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                  className="object-cover transition-transform duration-DEFAULT ease-trail hover:scale-[1.03]"
                 />
                 {showingAll && p.verdict && (
                   <figcaption className="absolute top-2 left-2 status-pill backdrop-blur capitalize">
