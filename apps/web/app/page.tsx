@@ -1,21 +1,33 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
-import { ArrowRight, Github, Cpu, Sparkles, Plug } from "lucide-react";
+import { ArrowRight, Github, Cpu, Sparkles, Plug, ChevronDown, Check } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
+
+type Aesthetic = {
+  overall?: number;
+  composition?: number;
+  visual_elements?: number;
+  technical?: number;
+  originality?: number;
+  theme?: number;
+  emotion?: number;
+  gestalt?: number;
+};
 
 type Photo = {
   photo_id: string;
   uri: string;
   thumb_uri?: string | null;
   verdict?: string | null;
-  aesthetic?: { overall?: number } | null;
+  aesthetic?: Aesthetic | null;
+  critique?: string | null;
 };
 
 type DemoData = {
-  hero_uri: string | null;
+  hero_photo: Photo | null;
   gallery: Photo[];
   demo_trail_id: string | null;
 };
@@ -37,19 +49,17 @@ async function fetchDemo(): Promise<DemoData> {
     const keeps = arr.filter((x) => x.verdict === "keep");
     const pool = keeps.length ? keeps : arr;
     pool.sort((a, b) => (b.aesthetic?.overall ?? 0) - (a.aesthetic?.overall ?? 0));
-    // 作品网格门槛:>= 7.5 分才配当"精选"露出;不足 3 张就 gallery=[]
-    // 首图门槛更宽 >= 6.5,反正会被压暗
     const HERO_MIN = 6.5;
     const GRID_MIN = 7.5;
     const heroPhoto = pool.find((x) => (x.aesthetic?.overall ?? 0) >= HERO_MIN);
     const gridPhotos = pool.filter((x) => (x.aesthetic?.overall ?? 0) >= GRID_MIN);
     return {
-      hero_uri: heroPhoto?.uri ?? pool[0]?.uri ?? null,
+      hero_photo: heroPhoto ?? pool[0] ?? null,
       gallery: gridPhotos.length >= 3 ? gridPhotos.slice(0, 6) : [],
       demo_trail_id: trail.id,
     };
   } catch {
-    return { hero_uri: null, gallery: [], demo_trail_id: null };
+    return { hero_photo: null, gallery: [], demo_trail_id: null };
   }
 }
 
@@ -62,12 +72,12 @@ export default async function HomePage() {
 
   return (
     <main>
-      {/* ═════════════ HERO · 全屏照片 + 蒙层 + 中央文字 ═════════════ */}
-      <section className="relative isolate flex min-h-[calc(100dvh-56px)] items-center px-6 md:px-12">
+      {/* ═════════════ HERO · 全屏照片 + 蒙层 + 中央文字 + 评分卡 ═════════════ */}
+      <section className="relative isolate flex min-h-[calc(100dvh-56px)] items-center px-6 md:px-12 pb-24 md:pb-32">
         {/* 背景照片 */}
-        {demo.hero_uri && (
+        {demo.hero_photo?.uri && (
           <Image
-            src={demo.hero_uri}
+            src={demo.hero_photo.uri}
             alt="风光摄影示例"
             fill
             priority
@@ -77,21 +87,21 @@ export default async function HomePage() {
         )}
         {/* 蒙层:整体压暗 + 顶部到底渐变提高文字对比 */}
         <div className="absolute inset-0 -z-10 bg-gradient-to-b from-bg-base/70 via-bg-base/50 to-bg-base pointer-events-none" />
-        {/* 兜底(照片没拉到时的深色背景) */}
-        {!demo.hero_uri && <div className="absolute inset-0 -z-20 bg-bg-base" />}
+        {!demo.hero_photo?.uri && <div className="absolute inset-0 -z-20 bg-bg-base" />}
 
         <div className="mx-auto w-full max-w-5xl">
           <p className="mono mb-6 text-fg-secondary">v0.0.1 · build in public</p>
 
-          <h1 className="font-display text-5xl leading-[1.05] text-fg-primary md:text-7xl drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
+          {/* h1: mobile text-4xl 避免"AI 暗房"换行,md 起 text-7xl */}
+          <h1 className="font-display text-4xl leading-[1.1] text-fg-primary md:text-7xl md:leading-[1.05] drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
             给徒步的
             <br />
             <span className="text-accent-aurora">风光摄影师</span>
             <br />
-            造一间 AI 暗房。
+            <span className="whitespace-nowrap">造一间 AI 暗房。</span>
           </h1>
 
-          <p className="mt-8 max-w-xl text-lg text-fg-primary/90 md:text-xl leading-relaxed drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
+          <p className="mt-8 max-w-xl text-base md:text-xl text-fg-primary/90 leading-relaxed drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
             一整次徒步的素材丢进去,AI 自动选片、点评、写游记,
             规划下次拍摄计划。
           </p>
@@ -118,7 +128,24 @@ export default async function HomePage() {
             )}
           </div>
         </div>
+
+        {/* 评分卡:浮在右下(桌面) / 底部(mobile),展示 AI 对 hero 图的真实分析 */}
+        {demo.hero_photo?.aesthetic && (
+          <ScoreCard photo={demo.hero_photo} className="absolute md:right-12 md:bottom-24 right-6 bottom-20 hidden md:block" />
+        )}
+
+        {/* 向下滚动引导 */}
+        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-fg-tertiary animate-bounce">
+          <ChevronDown size={20} />
+        </div>
       </section>
+
+      {/* mobile 评分卡:hero 下方独立 section(避免 overlap 主标题) */}
+      {demo.hero_photo?.aesthetic && (
+        <section className="md:hidden px-6 -mt-6 mb-12">
+          <ScoreCard photo={demo.hero_photo} />
+        </section>
+      )}
 
       {/* ═════════════ 作品网格 · 让人看见效果 ═════════════ */}
       {demo.gallery.length > 0 && (
@@ -291,10 +318,82 @@ function Card({
 
 function Step({ n, title, body }: { n: string; title: string; body: string }) {
   return (
-    <div>
-      <div className="mono text-3xl text-accent-glacier mb-3">{n}</div>
-      <h4 className="font-display text-xl text-fg-primary mb-2">{title}</h4>
+    <div className="relative">
+      {/* 大号编号 · 抢眼但克制 */}
+      <div className="mono text-6xl md:text-7xl font-bold text-accent-glacier/20 leading-none mb-2 select-none">
+        {n}
+      </div>
+      <h4 className="font-display text-xl md:text-2xl text-fg-primary mb-3">{title}</h4>
       <p className="text-sm text-fg-secondary leading-relaxed">{body}</p>
+    </div>
+  );
+}
+
+/* ───── ScoreCard · AI 对 hero 照片的实测输出卡 ───── */
+const DIM_LABELS: Array<[keyof Aesthetic, string]> = [
+  ["composition", "构图"],
+  ["visual_elements", "视觉"],
+  ["technical", "技术"],
+  ["originality", "原创"],
+  ["theme", "主题"],
+  ["emotion", "情感"],
+  ["gestalt", "格式塔"],
+];
+
+function ScoreCard({ photo, className = "" }: { photo: Photo; className?: string }) {
+  const a = photo.aesthetic ?? {};
+  const overall = a.overall ?? 0;
+  const critique = photo.critique ?? "";
+
+  return (
+    <div
+      className={
+        "w-[300px] rounded-lg border border-divider/60 bg-bg-base/85 backdrop-blur-md shadow-2xl p-4 " +
+        className
+      }
+    >
+      {/* 头部:verdict + 分数 */}
+      <div className="flex items-center justify-between mb-3">
+        <span className="inline-flex items-center gap-1 rounded-md bg-accent-aurora/15 text-accent-aurora text-xs px-2 py-0.5">
+          <Check size={12} /> keep
+        </span>
+        <div className="text-right leading-none">
+          <div className="mono text-[10px] text-fg-tertiary">AI 综合</div>
+          <div className="font-display text-3xl text-fg-primary">
+            {overall.toFixed(1)}
+          </div>
+        </div>
+      </div>
+
+      {/* 8 维 bar */}
+      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-3">
+        {DIM_LABELS.map(([k, label]) => {
+          const v = (a[k] as number | undefined) ?? 0;
+          const pct = Math.min(100, Math.max(0, v * 10));
+          return (
+            <div key={k} className="flex items-center gap-1.5">
+              <span className="text-[10px] text-fg-tertiary shrink-0 w-8">{label}</span>
+              <div className="h-1 flex-1 rounded-full bg-fg-tertiary/20 overflow-hidden">
+                <div
+                  className="h-full bg-accent-aurora rounded-full"
+                  style={{ width: `${pct}%` }}
+                />
+              </div>
+              <span className="mono text-[10px] text-fg-secondary w-6 text-right">
+                {v.toFixed(1)}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* critique 摘要 */}
+      {critique && (
+        <p className="text-xs text-fg-secondary leading-snug border-t border-divider/40 pt-3">
+          <span className="mono text-fg-tertiary">AI 点评 · </span>
+          {critique.length > 70 ? critique.slice(0, 70) + "…" : critique}
+        </p>
+      )}
     </div>
   );
 }
