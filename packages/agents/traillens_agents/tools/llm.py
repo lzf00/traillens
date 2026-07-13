@@ -88,17 +88,31 @@ def _chat_doubao(messages, image_url, text, purpose, max_tokens, temperature):
     except ImportError:
         return _chat_doubao_via_httpx(api_key, base_url, model, inputs, max_tokens, temperature)
 
-    client = OpenAI(api_key=api_key, base_url=base_url)
+    # timeout=30s(单请求),max_retries=2(SDK 内置 exponential backoff on 429/5xx)
+    # 防 SDK 默认 600s 卡死 worker
+    client = OpenAI(api_key=api_key, base_url=base_url,
+                    timeout=float(os.environ.get("DOUBAO_TIMEOUT", "30")),
+                    max_retries=int(os.environ.get("DOUBAO_MAX_RETRIES", "2")))
     resp = client.responses.create(
         model=model,
         input=inputs,
         max_output_tokens=max_tokens,
         temperature=temperature,
     )
+    # 记 usage(P1-B 可观测:成本追踪)
+    try:
+        usage = getattr(resp, "usage", None)
+        if usage:
+            log.info("doubao.usage model=%s purpose=%s input=%s output=%s total=%s",
+                     model, purpose,
+                     getattr(usage, "input_tokens", None),
+                     getattr(usage, "output_tokens", None),
+                     getattr(usage, "total_tokens", None))
+    except Exception:  # noqa: BLE001
+        pass
     text_out = getattr(resp, "output_text", None)
     if text_out:
         return text_out
-    # 兜底:从 output 列表里拼第一个 text
     for item in getattr(resp, "output", []) or []:
         for c in getattr(item, "content", []) or []:
             if getattr(c, "type", None) == "output_text":

@@ -37,7 +37,12 @@ def _client():
         from openai import OpenAI  # type: ignore
     except ImportError:
         return None
-    return OpenAI(api_key=api_key, base_url=base_url)
+    # 与 llm.py 一致的 timeout + retry:防 SDK 默认 600s hang
+    return OpenAI(
+        api_key=api_key, base_url=base_url,
+        timeout=float(os.environ.get("DOUBAO_TIMEOUT", "30")),
+        max_retries=int(os.environ.get("DOUBAO_MAX_RETRIES", "2")),
+    )
 
 
 def embed_text(text: str) -> list[float] | None:

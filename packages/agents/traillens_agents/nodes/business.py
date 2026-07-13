@@ -87,24 +87,28 @@ def culling_node(state: GraphState) -> dict:
 # Critic:对保留的照片生成自然语言点评
 # --------------------------------------------------------------------------- #
 def critic_node(state: GraphState) -> dict:
+    """并发 5 张打分,LLM 底层重试 + timeout(见 llm.py OpenAI init)。
+
+    保持 sync 签名(fallback 路径也要用),用 ThreadPoolExecutor 并发。
+    """
+    from concurrent.futures import ThreadPoolExecutor
     from ..tools.llm import chat as llm_chat
 
     photos = [p.model_copy(deep=True) for p in state.photos]
-    for p in photos:
+
+    def _critique_one(p):
         if p.verdict != PhotoVerdict.KEEP or p.aesthetic is None:
-            continue
-        # 去重:已有 critique 的照片不重跑(重跑 Run 时省 5x 成本)
+            return
+        # 去重:已有 critique 不重跑(重跑 Run 省 5x 成本)
         if p.critique:
-            continue
+            return
         a = p.aesthetic
         weakest = min(
             [("构图", a.composition), ("技术执行", a.technical), ("情感", a.emotion)],
             key=lambda x: x[1],
         )
-        # 接豆包文本模型(不用 vision — 前面 audit 发现 critic 只喂 EXIF+分数
-        # 没喂 image_url,继续走 vision 白付溢价)
         llm_out = llm_chat(
-            purpose="critic_text",   # llm.py 里映射到 doubao-seed-1-6-thinking
+            purpose="critic_text",   # → doubao-seed-1-6-thinking(纯文本,不付 vision 溢价)
             messages=[
                 {"role": "system", "content":
                     "你是一位资深风光摄影评审,语言克制有洞察。每次回复不超过 80 字。"},
@@ -115,15 +119,21 @@ def critic_node(state: GraphState) -> dict:
                     f"原创={a.originality} 主题={a.theme} 情感={a.emotion} 格式塔={a.gestalt}。"
                     f"请给一段简短点评 + 一条下次改进建议。"},
             ],
-            max_tokens=512,   # thinking 模型 reasoning 占大半,给 512 够回 80 字
+            max_tokens=512,
             temperature=0.6,
         )
-        # 长度护栏 + strip:防 LLM 输出超长或前后空白
         p.critique = (llm_out or "").strip()[:400] or (
             f"综合 {a.overall}/10。亮点在视觉元素({a.visual_elements})与"
             f"格式塔({a.gestalt})。可提升:{weakest[0]}({weakest[1]})。"
             f"建议下次在 {p.exif.focal_length_mm}mm 焦段尝试调整前景平衡。"
-            )
+        )
+
+    # 并发 5(env 可配);ThreadPool 因为底层 openai SDK 是 sync 阻塞式
+    import os as _os
+    max_workers = int(_os.environ.get("CRITIC_CONCURRENCY", "5"))
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        list(pool.map(_critique_one, photos))
+
     return {
         "photos": photos,
         "messages": [{"role": "critic", "content": f"已点评 {len(state.kept_photos())} 张精选片"}],

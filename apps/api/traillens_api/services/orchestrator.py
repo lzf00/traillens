@@ -25,6 +25,24 @@ from traillens_agents.tools import clients  # noqa: E402
 
 from .observability import log_agent_event, trace_agent_run  # noqa: E402
 
+import logging as _logging
+import re as _re
+_log = _logging.getLogger("traillens.orchestrator")
+
+
+def _mask_error(e: Exception) -> str:
+    """脱敏错误消息:防 DB URL / API key / 文件路径泄漏到前端。
+
+    真错误进 server log(_log.exception),前端只看到通用 phase + hash id。
+    """
+    _log.exception("orchestrator error: %s", e)
+    msg = str(e)
+    # 简单 mask:含 :// 的 URL、含 sk-/dop_ 前缀 token
+    if _re.search(r"://\S+|sk-\S+|dop_\S+|/[\w/]+\.py|password|secret|key=", msg, _re.I):
+        return f"internal:{type(e).__name__}"
+    # 短消息可以透出;>200 字符也截
+    return type(e).__name__ + ": " + msg[:200]
+
 
 def _sse(event: str, data: dict) -> str:
     return f"event: {event}\ndata: {json.dumps(data, ensure_ascii=False)}\n\n"
@@ -180,7 +198,7 @@ async def _via_langgraph(trail_id: str, run_id: str, user_id: str | None = None)
                             seen_photo_ids.add(p.photo_id)
                             yield _sse("culling.photo_scored", _photo_event(p))
     except Exception as e:  # noqa: BLE001  langgraph API 任何报错 → 切 fallback
-        yield _sse("run.error", {"phase": "langgraph", "error": str(e)})
+        yield _sse("run.error", {"phase": "langgraph", "error": _mask_error(e)})
         raise _LangGraphUnavailable() from e
 
     if last_state:
@@ -208,7 +226,7 @@ async def _via_langgraph(trail_id: str, run_id: str, user_id: str | None = None)
                         # photo_id 是 sample 时不是 DB 行 id;真照片 photo_id == DB id
                         store.write_photo_embedding(p.photo_id, v)
         except Exception as e:  # noqa: BLE001
-            yield _sse("run.error", {"phase": "persist", "error": str(e)})
+            yield _sse("run.error", {"phase": "persist", "error": _mask_error(e)})
         if last_state.travelogue_md:
             yield _sse("story.delta", {"chunk": last_state.travelogue_md})
         if last_state.next_trip_plan:
@@ -272,7 +290,7 @@ async def _via_fallback(trail_id: str, run_id: str, user_id: str | None = None) 
                 if v:
                     store.write_photo_embedding(p.photo_id, v)
     except Exception as e:  # noqa: BLE001
-        yield _sse("run.error", {"phase": "persist", "error": str(e)})
+        yield _sse("run.error", {"phase": "persist", "error": _mask_error(e)})
 
     yield _sse("run.finished", {
         "run_id": run_id, "trail_id": trail_id,
