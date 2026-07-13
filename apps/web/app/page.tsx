@@ -42,7 +42,7 @@ async function fetchDemo(): Promise<DemoData> {
       ? `/v1/trails/${pinned}/public`
       : `/v1/trails/_demo/public`;
     const r = await apiFetch(trailUrl, { cache: "no-store" });
-    if (!r.ok) return { hero_uri: null, gallery: [], demo_trail_id: null };
+    if (!r.ok) return { hero_photo: null, gallery: [], demo_trail_id: null };
     const trail = await r.json();
     const p = await apiFetch(`/v1/trails/${trail.id}/photos/public`, { cache: "no-store" });
     const arr: Photo[] = p.ok ? await p.json() : [];
