@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
-import { ArrowRight, Github, Cpu, Sparkles, Plug, ChevronDown, Check } from "lucide-react";
+import { ArrowRight, Github, Users, Mountain, Cable, ChevronDown, ChevronUp, Check } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -71,7 +71,7 @@ export default async function HomePage() {
   const demo = await fetchDemo();
 
   return (
-    <main>
+    <main id="top">
       {/* ═════════════ HERO · 全屏照片 + 蒙层 + 中央文字 + 评分卡 ═════════════ */}
       <section className="relative isolate flex min-h-[calc(100dvh-56px)] items-center px-6 md:px-12 pb-24 md:pb-32">
         {/* 背景照片 */}
@@ -154,7 +154,7 @@ export default async function HomePage() {
             <div className="mb-8 flex items-baseline justify-between gap-4 flex-wrap">
               <div>
                 <p className="mono mb-2 text-fg-tertiary">看看它出什么样</p>
-                <h2 className="font-display text-3xl md:text-4xl text-fg-primary">
+                <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary">
                   AI 从这一组照片里挑出的精选。
                 </h2>
               </div>
@@ -203,7 +203,7 @@ export default async function HomePage() {
         <div className="mx-auto max-w-6xl">
           <div className="mb-12 max-w-2xl">
             <p className="mono mb-2 text-fg-tertiary">TrailLens 是什么</p>
-            <h2 className="font-display text-3xl md:text-4xl text-fg-primary">
+            <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary">
               一个专为风光摄影师做的
               <br />
               自动化后期助手。
@@ -211,17 +211,17 @@ export default async function HomePage() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <Card
-              icon={<Cpu size={20} />}
+              icon={<Users size={20} />}
               title="四个 AI 智能体协作"
               body="选片、点评、写游记、规划下一次 —— 每步都留决策痕迹。想手动接管随时打断,继续跑不丢进度。"
             />
             <Card
-              icon={<Sparkles size={20} />}
+              icon={<Mountain size={20} />}
               title="专为风光调过的美学模型"
               body="用 5000+ 张风光原片微调,评构图、光线、氛围、情绪比通用模型更懂你。开源权重可自托管。"
             />
             <Card
-              icon={<Plug size={20} />}
+              icon={<Cable size={20} />}
               title="打通 Claude / Cursor"
               body="EXIF、天气、日月轨迹三个 MCP server 开源,直接挂到 Claude Desktop 或 Cursor,不用再自己造工具。"
             />
@@ -233,7 +233,7 @@ export default async function HomePage() {
       <section className="px-6 md:px-12 py-24 border-t border-divider">
         <div className="mx-auto max-w-6xl">
           <p className="mono mb-2 text-fg-tertiary">怎么用</p>
-          <h2 className="font-display text-3xl md:text-4xl text-fg-primary mb-12">
+          <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary mb-12">
             三步走。
           </h2>
           <div className="grid gap-8 md:grid-cols-3">
@@ -252,6 +252,17 @@ export default async function HomePage() {
               title="导出、分享、找回"
               body="下载精选 zip,一键出小红书文,或用中文语义搜索翻整个照片库。"
             />
+          </div>
+
+          {/* 回顶部 */}
+          <div className="mt-16 flex justify-center">
+            <a
+              href="#top"
+              className="group inline-flex items-center gap-1.5 rounded-full border border-divider bg-bg-raised/40 px-4 py-2 text-xs text-fg-secondary hover:text-fg-primary hover:border-accent-aurora/60 transition-all"
+            >
+              <ChevronUp size={14} className="transition-transform group-hover:-translate-y-0.5" />
+              回顶部
+            </a>
           </div>
         </div>
       </section>
