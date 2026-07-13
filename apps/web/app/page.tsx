@@ -21,13 +21,19 @@ type DemoData = {
 };
 
 async function fetchDemo(): Promise<DemoData> {
+  // 优先 env(LANDING_TRAIL_ID 手动 pin 一个真风光 trail),否则走后端 _demo/public
+  // 后端 pick_demo_trail 目前按 travelogue+photos+recency 排,会选到"名字风光其实
+  // 宝可梦"的 trail;env 是最可靠的兜底
+  const pinned = process.env.LANDING_TRAIL_ID;
   try {
-    const r = await apiFetch("/v1/trails/_demo/public", { cache: "no-store" });
+    const trailUrl = pinned
+      ? `/v1/trails/${pinned}/public`
+      : `/v1/trails/_demo/public`;
+    const r = await apiFetch(trailUrl, { cache: "no-store" });
     if (!r.ok) return { hero_uri: null, gallery: [], demo_trail_id: null };
     const trail = await r.json();
     const p = await apiFetch(`/v1/trails/${trail.id}/photos/public`, { cache: "no-store" });
     const arr: Photo[] = p.ok ? await p.json() : [];
-    // keep 优先,按 overall 从高到低
     const keeps = arr.filter((x) => x.verdict === "keep");
     const pool = keeps.length ? keeps : arr;
     pool.sort((a, b) => (b.aesthetic?.overall ?? 0) - (a.aesthetic?.overall ?? 0));

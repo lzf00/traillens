@@ -126,6 +126,8 @@ services:
       NEXT_PUBLIC_API_BASE: ${NEXT_PUBLIC_API_BASE:-}
       # SSR 时优先走 docker 内网,避免回环走公网 + SSL 握手
       TRAILLENS_API_INTERNAL_BASE: http://api:8000
+      # 强制 landing hero 用这个 trail 的照片(避免自动 pick 到"名字骗人"的 trail)
+      LANDING_TRAIL_ID: ${LANDING_TRAIL_ID:-eeac6041-5b15-461b-93e9-33244decfbfb}
       # 关掉客户端遥测
       NEXT_TELEMETRY_DISABLED: "1"
     ports:
