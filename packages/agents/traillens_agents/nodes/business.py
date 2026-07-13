@@ -122,7 +122,13 @@ def critic_node(state: GraphState) -> dict:
             max_tokens=512,
             temperature=0.6,
         )
-        p.critique = (llm_out or "").strip()[:400] or (
+        # refusal 检测:LLM 有时返回"我不能帮忙"等,不该当作合法点评落库
+        cleaned = (llm_out or "").strip()[:400]
+        _REFUSAL_PATTERNS = ("我不能", "无法帮", "抱歉", "I cannot", "I'm sorry",
+                             "as an AI", "作为 AI", "无法评价")
+        if not cleaned or any(pat in cleaned for pat in _REFUSAL_PATTERNS):
+            cleaned = ""
+        p.critique = cleaned or (
             f"综合 {a.overall}/10。亮点在视觉元素({a.visual_elements})与"
             f"格式塔({a.gestalt})。可提升:{weakest[0]}({weakest[1]})。"
             f"建议下次在 {p.exif.focal_length_mm}mm 焦段尝试调整前景平衡。"
