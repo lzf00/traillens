@@ -86,8 +86,8 @@ export default async function HomePage() {
             body="Q-Align + landscape LoRA。开源权重,可自托管,PLCC 目标 > 0.78。"
           />
           <Feature
-            title="MCP 一等公民"
-            body="EXIF / Weather / Sun-Moon 都是独立 MCP server,可被任何 LLM 客户端直接装。"
+            title="MCP 工具链开源"
+            body="EXIF / 天气 / 日月轨迹 三个独立 MCP server, 可直接挂到 Claude Desktop、Cursor 等 LLM 客户端。"
           />
         </div>
       </div>
