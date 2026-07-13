@@ -19,6 +19,8 @@ import { ScoreRadar } from "@/components/canvas/ScoreRadar";
 import { AgentTrace, type TraceEntry } from "@/components/agent/AgentTrace";
 import { Button } from "@/components/ui/Button";
 import { InlineEdit } from "@/components/ui/InlineEdit";
+import { Toast, type ToastMsg } from "@/components/ui/Toast";
+import { ConfirmDialog, useConfirm } from "@/components/ui/ConfirmDialog";
 import { apiFetch } from "@/lib/api";
 import { streamSse } from "@/lib/sse";
 import { Play, Square, MoreVertical, Pencil, Trash2, Plus, X, Check, Download, Share2 } from "lucide-react";
@@ -37,6 +39,8 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [trace, setTrace] = useState<TraceEntry[]>([]);
   const [running, setRunning] = useState(false);
+  const [toast, setToast] = useState<ToastMsg | null>(null);
+  const { state: confirmState, ask, askText, close: closeConfirm } = useConfirm();
 
   function toggleMulti(id: string) {
     setSelectedIds((prev) => {
@@ -62,7 +66,11 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
 
   async function bulkDelete() {
     if (selectedIds.size === 0) return;
-    if (!confirm(`删除选中的 ${selectedIds.size} 张?(同步清 COS,不可恢复)`)) return;
+    if (!(await ask({
+      title: `删除选中的 ${selectedIds.size} 张?`,
+      body: "同步清 COS 存储,不可恢复。",
+      danger: true, confirmLabel: "删除",
+    }))) return;
     const ids = Array.from(selectedIds);
     await Promise.all(ids.map((pid) =>
       apiFetch(`/v1/trails/${trailId}/photos/${pid}`, { method: "DELETE" })
@@ -116,7 +124,11 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   }
 
   async function deletePhoto(photoId: string) {
-    if (!confirm("删除这张照片?(同时清 COS 不可恢复)")) return;
+    if (!(await ask({
+      title: "删除这张照片?",
+      body: "同时清 COS 存储,不可恢复。",
+      danger: true, confirmLabel: "删除",
+    }))) return;
     const r = await apiFetch(`/v1/trails/${trailId}/photos/${photoId}`, {
       method: "DELETE",
     });
@@ -252,25 +264,36 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
   const [menuOpen, setMenuOpen] = useState(false);
 
   async function onRename() {
-    const next = prompt("新名称", trailName);
+    const next = await askText({
+      title: "重命名 Trail",
+      inputPlaceholder: "新名称",
+      inputDefault: trailName,
+      confirmLabel: "保存",
+    });
     if (!next || next.trim() === trailName) return;
     const r = await apiFetch(`/v1/trails/${trailId}`, {
       method: "PATCH",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ name: next.trim() }),
     });
-    if (r.ok) setTrailName(next.trim());
+    if (r.ok) { setTrailName(next.trim()); setToast({ level: "success", text: "已重命名" }); }
+    else setToast({ level: "error", text: `重命名失败 HTTP ${r.status}` });
   }
 
   async function onDelete() {
-    if (!confirm(`确定删除「${trailName}」?该 trail 的所有照片也会被删除,不可恢复。`)) return;
+    if (!(await ask({
+      title: `确定删除「${trailName}」?`,
+      body: "该 trail 的所有照片也会被删除,不可恢复。",
+      danger: true, confirmLabel: "永久删除",
+    }))) return;
     const r = await apiFetch(`/v1/trails/${trailId}`, { method: "DELETE" });
     if (r.ok) router.push("/trails");
+    else setToast({ level: "error", text: `删除失败 HTTP ${r.status}` });
   }
 
   async function onExportJson() {
     const r = await apiFetch(`/v1/trails/${trailId}/export/json`);
-    if (!r.ok) { alert("导出失败"); return; }
+    if (!r.ok) { setToast({ level: "error", text: `导出失败 HTTP ${r.status}` }); return; }
     const data = await r.json();
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const a = document.createElement("a");
@@ -278,21 +301,25 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
     a.download = `${trailName || "trail"}-backup.json`;
     a.click();
     URL.revokeObjectURL(a.href);
+    setToast({ level: "success", text: "已下载 JSON" });
   }
 
   async function onExportXhs() {
     const r = await apiFetch(`/v1/trails/${trailId}/export/xhs`);
-    if (!r.ok) { alert("导出失败"); return; }
+    if (!r.ok) { setToast({ level: "error", text: `导出失败 HTTP ${r.status}` }); return; }
     const data = await r.json();
-    // 弹窗显示文案 + 照片 URL,让用户复制
     const txt = `${data.caption}\n\n--- 照片 URL(${data.image_count} 张) ---\n${data.images.join("\n")}`;
-    // 复制到剪贴板 + 提示
     try {
       await navigator.clipboard.writeText(txt);
-      alert(`✅ 已复制到剪贴板:\n${data.image_count} 张照片 URL + 小红书风格文案\n\n直接到小红书创作页粘贴文案,逐张下载照片或长按存图。`);
+      setToast({ level: "success", text: `已复制到剪贴板:${data.image_count} 张 + 文案。到小红书创作页粘贴即可` });
     } catch {
-      // fallback 用 prompt
-      prompt("一键复制小红书图文(Ctrl/Cmd+C):", txt);
+      // clipboard 拒绝(非 https / 权限)时,用 prompt-like 输入框展示,用户手动复制
+      await askText({
+        title: "复制到剪贴板失败",
+        body: "手动 Ctrl/Cmd+C 复制下面文本:",
+        inputPlaceholder: "",
+        inputDefault: txt,
+      });
     }
   }
 
@@ -497,6 +524,9 @@ export default function TrailPage({ params }: { params: Promise<{ id: string }> 
           onSavePlan={(p) => patchTrail({ next_trip_plan: p })}
         />
       </div>
+
+      <Toast toast={toast} onClose={() => setToast(null)} />
+      <ConfirmDialog state={confirmState} close={closeConfirm} />
     </div>
   );
 }
