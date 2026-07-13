@@ -9,11 +9,22 @@
 
 version: "3.9"
 
+# ─────────────────────────────────────
+# 全局 logging 配置(json-file + rotate)
+# 不加会让 SSE agent 事件流打爆磁盘;每 service 用 <<: *logging 引用
+# ─────────────────────────────────────
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: "50m"
+    max-file: "5"
+
 services:
   postgres:
     image: pgvector/pgvector:pg16
     container_name: traillens-pg
     restart: unless-stopped
+    logging: *logging
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-traillens}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?需要在 .env 设密码}
@@ -30,6 +41,7 @@ services:
     image: redis:7-alpine
     container_name: traillens-redis
     restart: unless-stopped
+    logging: *logging
     command: ["redis-server", "--maxmemory", "256mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - traillens_redis_data:/data
@@ -42,6 +54,7 @@ services:
       dockerfile: apps/api/Dockerfile
     container_name: traillens-api
     restart: unless-stopped
+    logging: *logging
     depends_on:
       postgres:
         condition: service_healthy
@@ -104,6 +117,7 @@ services:
       dockerfile: apps/web/Dockerfile
     container_name: traillens-web
     restart: unless-stopped
+    logging: *logging
     environment:
       NODE_ENV: production
       PORT: 3000
@@ -125,6 +139,7 @@ services:
       dockerfile: packages/annotation/Dockerfile
     container_name: traillens-annotation
     restart: unless-stopped
+    logging: *logging
     environment:
       PORT: 5555
       HOST: 0.0.0.0
@@ -138,6 +153,7 @@ services:
     image: caddy:2-alpine
     container_name: traillens-caddy
     restart: unless-stopped
+    logging: *logging
     profiles: ["use-caddy"]   # 默认不启动 — host 的 nginx 来反代
     depends_on:
       - api
@@ -155,6 +171,7 @@ services:
     image: langfuse/langfuse:latest
     container_name: traillens-langfuse
     restart: unless-stopped
+    logging: *logging
     profiles: ["observability"]
     depends_on:
       postgres:
