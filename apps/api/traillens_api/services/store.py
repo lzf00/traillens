@@ -372,17 +372,24 @@ def _db_get_trail(trail_id, *, user_id):
 
 
 def _db_list_trails(*, user_id, limit):
+    # 消除 N+1:LATERAL 一次算 cover_uri;photo_count 用 GROUP BY 单扫 photos
+    # 100 trail 从 200 subquery → 1 主查询 + 1 lateral(每行) = O(N) 但走索引
     sql = _text("""
         SELECT t.id, t.user_id, t.name, t.location_name, t.gpx_uri, t.state,
                t.travelogue_md, t.next_trip_plan, t.created_at, t.updated_at,
-               (SELECT COUNT(*) FROM photos WHERE trail_id=t.id) AS photo_count,
-               (
-                 SELECT COALESCE(thumb_uri, uri) FROM photos
-                 WHERE trail_id = t.id
-                 ORDER BY (verdict = 'keep') DESC NULLS LAST, created_at ASC
-                 LIMIT 1
-               ) AS cover_uri
+               COALESCE(pc.n, 0) AS photo_count,
+               cover.uri AS cover_uri
         FROM trails t
+        LEFT JOIN LATERAL (
+          SELECT COALESCE(thumb_uri, uri) AS uri
+          FROM photos
+          WHERE trail_id = t.id
+          ORDER BY (verdict = 'keep') DESC NULLS LAST, created_at ASC
+          LIMIT 1
+        ) cover ON TRUE
+        LEFT JOIN (
+          SELECT trail_id, COUNT(*) AS n FROM photos GROUP BY trail_id
+        ) pc ON pc.trail_id = t.id
         WHERE t.user_id = :uid
         ORDER BY t.updated_at DESC
         LIMIT :lim

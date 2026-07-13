@@ -373,40 +373,58 @@ async def upload_photos(
     from ..schemas import PhotoIn
     from ..services.exif import extract_exif_from_bytes
 
-    photos: list[PhotoIn] = []
-    failed = []
-    total = 0
-    for f in files:
-        data = await _read_bounded(f)
-        total += len(data)
-        if total > MAX_BATCH_BYTES:
-            raise HTTPException(413, {"error": "batch_too_large", "max": MAX_BATCH_BYTES})
-        # magic-bytes 校验:不认可扩展名/content_type
-        sniffed = _sniff_mime(data)
-        if not sniffed:
-            failed.append(f.filename)
-            continue
-        # ext 用 sniffed MIME 决定,防路径伪造
-        ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}.get(sniffed, "jpg")
+    import asyncio as _asyncio
+    loop = _asyncio.get_running_loop()
+
+    def _process_one(data: bytes, sniffed: str, ext: str):
+        """同步块:put_object + EXIF + thumbnail + put_object thumb — 在 executor 里跑。"""
         photo_id = str(uuid.uuid4())
         key = storage.make_object_key(
             user_id=user.id, trail_id=trail_id, photo_id=photo_id, ext=ext,
         )
         uri = storage.put_object(key, data, content_type=sniffed)
         if not uri:
-            failed.append(f.filename)
-            continue
-        # 上传时一次性解析 EXIF 入库,Run 时不需要再下载 COS
+            return None
         exif = extract_exif_from_bytes(data)
-        # 同步生成 300px 缩略图(失败不阻断上传)
         thumb_uri = None
         thumb_bytes = storage.make_thumbnail(data, max_side=300)
         if thumb_bytes:
             thumb_key = key.rsplit(".", 1)[0] + "_thumb.jpg"
             thumb_uri = storage.put_object(thumb_key, thumb_bytes, content_type="image/jpeg")
-        photos.append(PhotoIn(uri=uri, thumb_uri=thumb_uri, exif=exif or None))
+        return PhotoIn(uri=uri, thumb_uri=thumb_uri, exif=exif or None)
 
-    accepted = store.add_photos(trail_id, user_id=user.id, photos=photos)
+    photos: list[PhotoIn] = []
+    failed = []
+    total = 0
+    # 先 read + magic-bytes 过滤(不用 executor,await f.read 本身是 async)
+    pending = []   # (data, sniffed, ext)
+    for f in files:
+        data = await _read_bounded(f)
+        total += len(data)
+        if total > MAX_BATCH_BYTES:
+            raise HTTPException(413, {"error": "batch_too_large", "max": MAX_BATCH_BYTES})
+        sniffed = _sniff_mime(data)
+        if not sniffed:
+            failed.append(f.filename)
+            continue
+        ext = {"image/jpeg": "jpg", "image/png": "png", "image/webp": "webp", "image/gif": "gif"}.get(sniffed, "jpg")
+        pending.append((data, sniffed, ext, f.filename))
+
+    # 并行在 executor 里跑 put_object + Pillow — 不阻塞 event loop
+    results = await _asyncio.gather(*[
+        loop.run_in_executor(None, _process_one, data, sniffed, ext)
+        for data, sniffed, ext, _ in pending
+    ])
+    for (data, _, _, fname), pi in zip(pending, results):
+        if pi is None:
+            failed.append(fname)
+        else:
+            photos.append(pi)
+
+    # DB write 也塞 executor(同步 SQLAlchemy)
+    accepted = await loop.run_in_executor(
+        None, lambda: store.add_photos(trail_id, user_id=user.id, photos=photos)
+    )
     return {
         "accepted": accepted,
         "failed": failed,
@@ -440,9 +458,25 @@ def download_keeps_zip(
     if not photos:
         raise HTTPException(404, "no_keep_photos")
 
+    # 真流式 zip:每 file 增量 write 后立刻 yield 累积的 bytes,不全塞内存
+    # 用可 flush 的中间 buffer + write callback
+    class _StreamBuf(io.RawIOBase):
+        """收集 zip write 的 bytes,gen() 每张 yield 一次然后清空。"""
+        def __init__(self):
+            self._chunks = []
+        def writable(self): return True
+        def write(self, b):
+            self._chunks.append(bytes(b))
+            return len(b)
+        def drain(self) -> bytes:
+            out = b"".join(self._chunks)
+            self._chunks.clear()
+            return out
+
     def gen():
-        buf = io.BytesIO()
-        with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED) as zf:
+        buf = _StreamBuf()
+        # allowZip64=True 支持 >4GB;ZIP_STORED 不压缩(JPG 已压过)
+        with zipfile.ZipFile(buf, "w", zipfile.ZIP_STORED, allowZip64=True) as zf:
             for i, p in enumerate(photos, 1):
                 try:
                     with urllib.request.urlopen(p.uri, timeout=20) as r:
@@ -450,12 +484,16 @@ def download_keeps_zip(
                 except Exception:
                     continue
                 ext = (p.uri.rsplit(".", 1)[-1] or "jpg").lower()[:5]
-                # 文件名按打分排序前缀,方便用户选片
                 overall = (p.aesthetic or {}).get("overall") if isinstance(p.aesthetic, dict) else None
                 score = f"{overall:.1f}_" if isinstance(overall, (int, float)) else ""
                 zf.writestr(f"{score}{i:03d}_{p.photo_id[:8]}.{ext}", data)
-        buf.seek(0)
-        yield buf.read()
+                chunk = buf.drain()
+                if chunk:
+                    yield chunk
+        # zip trailer(central directory)在 ZipFile.__exit__ 里 write
+        tail = buf.drain()
+        if tail:
+            yield tail
 
     # Content-Disposition header 必须 latin-1;中文 trail name 用 RFC 5987 编码
     from urllib.parse import quote
