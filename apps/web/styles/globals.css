@@ -30,6 +30,24 @@ html.theme-light input,
 html.theme-light select,
 html.theme-light textarea { background-color: #FFFFFF !important; color: #0F1115 !important; }
 
+/* Landing 三大能力卡片 · light 模式专用亮化 */
+html.theme-light .landing-card {
+  background-color: #FFFFFF !important;
+  border-color: rgba(15, 17, 21, 0.08) !important;
+  box-shadow: 0 4px 20px -8px rgba(15, 17, 21, 0.08), 0 2px 6px -2px rgba(15, 17, 21, 0.04) !important;
+}
+html.theme-light .landing-card:hover {
+  box-shadow: 0 20px 40px -12px rgba(79, 168, 117, 0.25), 0 8px 16px -6px rgba(79, 168, 117, 0.15) !important;
+  border-color: #4FA875 !important;
+}
+html.theme-light .landing-card-topline {
+  background-color: rgba(79, 168, 117, 0.4) !important;
+}
+html.theme-light .landing-tag {
+  background-color: rgba(15, 17, 21, 0.04) !important;
+  border-color: rgba(15, 17, 21, 0.06) !important;
+}
+
 html,
 body {
   @apply bg-bg-base text-fg-primary font-sans antialiased;

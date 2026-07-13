@@ -329,16 +329,13 @@ function Card({
   tags: string[];
 }) {
   return (
-    <div className="group relative overflow-hidden rounded-xl border border-divider bg-bg-raised p-6
+    <div className="landing-card group relative overflow-hidden rounded-xl border border-divider bg-bg-raised p-6
                     shadow-sm
-                    [.theme-light_&]:bg-white [.theme-light_&]:shadow-lg [.theme-light_&]:shadow-fg-primary/[0.04]
-                    [.theme-light_&]:border-fg-primary/[0.08]
                     transition-all duration-DEFAULT ease-trail
                     hover:border-accent-aurora hover:-translate-y-1
-                    hover:shadow-xl hover:shadow-accent-aurora/10
-                    [.theme-light_&]:hover:shadow-2xl [.theme-light_&]:hover:shadow-accent-aurora/20">
-      {/* 顶部装饰细线,dark 下 hover 才变绿;light 下常态就有淡绿露头,更精致 */}
-      <div className="absolute inset-x-0 top-0 h-0.5 bg-divider [.theme-light_&]:bg-accent-aurora/30 transition-colors group-hover:bg-accent-aurora" />
+                    hover:shadow-xl hover:shadow-accent-aurora/10">
+      {/* 顶部装饰细线,hover 时变绿(light 常态就有淡绿:见 globals.css) */}
+      <div className="landing-card-topline absolute inset-x-0 top-0 h-0.5 bg-divider transition-colors group-hover:bg-accent-aurora" />
 
       {/* 头部:大数字 + 实心 icon */}
       <div className="mb-6 flex items-center justify-between">
@@ -361,7 +358,7 @@ function Card({
         {tags.map((t) => (
           <span
             key={t}
-            className="text-xs rounded-full border border-divider bg-bg-base [.theme-light_&]:bg-fg-primary/[0.04] px-2.5 py-1 text-fg-secondary transition-colors group-hover:border-accent-aurora/40 group-hover:text-accent-aurora"
+            className="landing-tag text-xs rounded-full border border-divider bg-bg-base px-2.5 py-1 text-fg-secondary transition-colors group-hover:border-accent-aurora/40 group-hover:text-accent-aurora"
           >
             {t}
           </span>
