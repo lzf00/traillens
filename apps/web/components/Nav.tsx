@@ -28,12 +28,13 @@ export async function Nav() {
   const me = await fetchMe();
 
   return (
-    <nav className="flex items-center justify-between border-b border-divider px-6 py-3">
-      <Link href="/" className="font-display text-lg text-fg-primary">
+    <nav className="flex items-center justify-between gap-4 border-b border-divider px-4 md:px-6 py-3">
+      <Link href="/" className="font-display text-lg text-fg-primary shrink-0">
         TrailLens
       </Link>
 
-      <div className="flex items-center gap-5 text-sm">
+      {/* 中间链接:mobile 隐藏,md 起显示 */}
+      <div className="hidden md:flex items-center gap-5 text-sm">
         <Link href="/trails" className="text-fg-secondary hover:text-fg-primary transition-colors">
           Trails
         </Link>
@@ -45,11 +46,14 @@ export async function Nav() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-3 text-sm">
+      <div className="flex items-center gap-2 md:gap-3 text-sm shrink-0">
         <ThemeToggle />
         {me ? (
           <>
-            <span className="mono text-xs text-fg-tertiary">{me.email}</span>
+            {/* email 只在 sm 起显示 */}
+            <span className="hidden sm:inline mono text-xs text-fg-tertiary truncate max-w-[160px]">
+              {me.email}
+            </span>
             <form action="/v1/auth/sign-out" method="POST">
               <button
                 type="submit"

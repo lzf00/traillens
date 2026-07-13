@@ -37,9 +37,15 @@ async function fetchDemo(): Promise<DemoData> {
     const keeps = arr.filter((x) => x.verdict === "keep");
     const pool = keeps.length ? keeps : arr;
     pool.sort((a, b) => (b.aesthetic?.overall ?? 0) - (a.aesthetic?.overall ?? 0));
+    // 作品网格门槛:>= 7.5 分才配当"精选"露出;不足 3 张就 gallery=[]
+    // 首图门槛更宽 >= 6.5,反正会被压暗
+    const HERO_MIN = 6.5;
+    const GRID_MIN = 7.5;
+    const heroPhoto = pool.find((x) => (x.aesthetic?.overall ?? 0) >= HERO_MIN);
+    const gridPhotos = pool.filter((x) => (x.aesthetic?.overall ?? 0) >= GRID_MIN);
     return {
-      hero_uri: pool[0]?.uri ?? null,
-      gallery: pool.slice(0, 6),
+      hero_uri: heroPhoto?.uri ?? pool[0]?.uri ?? null,
+      gallery: gridPhotos.length >= 3 ? gridPhotos.slice(0, 6) : [],
       demo_trail_id: trail.id,
     };
   } catch {
