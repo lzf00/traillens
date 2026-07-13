@@ -351,12 +351,12 @@ function Card({
       </h3>
       <p className="text-sm text-fg-secondary leading-relaxed mb-5">{body}</p>
 
-      {/* 底部技术栈 tag */}
-      <div className="flex flex-wrap gap-1.5 pt-4 border-t border-divider">
+      {/* 底部技术栈 tag(中文不用 mono,字号 12,更清晰) */}
+      <div className="flex flex-wrap gap-2 pt-4 border-t border-divider">
         {tags.map((t) => (
           <span
             key={t}
-            className="mono text-[10px] rounded-full border border-divider bg-bg-base/40 px-2 py-0.5 text-fg-tertiary"
+            className="text-xs rounded-full border border-divider bg-bg-base px-2.5 py-1 text-fg-secondary transition-colors group-hover:border-accent-aurora/30 group-hover:text-fg-primary"
           >
             {t}
           </span>
