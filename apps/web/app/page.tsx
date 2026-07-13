@@ -211,19 +211,25 @@ export default async function HomePage() {
           </div>
           <div className="grid gap-4 md:grid-cols-3">
             <Card
-              icon={<Users size={20} />}
+              badge="04"
+              icon={<Users size={22} />}
               title="四个 AI 智能体协作"
               body="选片、点评、写游记、规划下一次 —— 每步都留决策痕迹。想手动接管随时打断,继续跑不丢进度。"
+              tags={["选片", "点评", "游记", "计划"]}
             />
             <Card
-              icon={<Mountain size={20} />}
+              badge="5K+"
+              icon={<Mountain size={22} />}
               title="专为风光调过的美学模型"
-              body="用 5000+ 张风光原片微调,评构图、光线、氛围、情绪比通用模型更懂你。开源权重可自托管。"
+              body="5000+ 张风光原片微调,评构图、光线、氛围、情绪比通用模型更懂你。开源权重可自托管。"
+              tags={["构图", "光线", "氛围", "情感"]}
             />
             <Card
-              icon={<Cable size={20} />}
+              badge="3"
+              icon={<Cable size={22} />}
               title="打通 Claude / Cursor"
               body="EXIF、天气、日月轨迹三个 MCP server 开源,直接挂到 Claude Desktop 或 Cursor,不用再自己造工具。"
+              tags={["EXIF", "天气", "日月轨迹"]}
             />
           </div>
         </div>
@@ -314,15 +320,48 @@ function CTAGhost({ href, children }: { href: string; children: React.ReactNode 
 }
 
 function Card({
-  icon, title, body,
-}: { icon: React.ReactNode; title: string; body: string }) {
+  badge, icon, title, body, tags,
+}: {
+  badge: string;
+  icon: React.ReactNode;
+  title: string;
+  body: string;
+  tags: string[];
+}) {
   return (
-    <div className="group rounded-lg border border-divider bg-bg-raised/40 p-6 transition-all hover:border-accent-aurora/60 hover:bg-bg-raised hover:-translate-y-0.5">
-      <div className="mb-5 inline-flex h-11 w-11 items-center justify-center rounded-md bg-accent-aurora/10 text-accent-aurora">
-        {icon}
+    <div className="group relative overflow-hidden rounded-xl border border-divider bg-bg-raised p-6
+                    transition-all duration-DEFAULT ease-trail
+                    hover:border-accent-aurora hover:-translate-y-1 hover:shadow-xl">
+      {/* 顶部装饰细线,hover 时变绿 */}
+      <div className="absolute inset-x-0 top-0 h-0.5 bg-divider transition-colors group-hover:bg-accent-aurora" />
+
+      {/* 头部:大数字 + 实心 icon */}
+      <div className="mb-6 flex items-center justify-between">
+        <div className="font-display text-4xl font-bold leading-none text-accent-aurora tracking-tight">
+          {badge}
+        </div>
+        <div className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-accent-aurora text-bg-base shadow-md shadow-accent-aurora/30">
+          {icon}
+        </div>
       </div>
-      <h3 className="font-display text-xl text-fg-primary mb-2">{title}</h3>
-      <p className="text-sm text-fg-secondary leading-relaxed">{body}</p>
+
+      {/* 标题 */}
+      <h3 className="font-display text-xl font-semibold text-fg-primary mb-2 leading-snug">
+        {title}
+      </h3>
+      <p className="text-sm text-fg-secondary leading-relaxed mb-5">{body}</p>
+
+      {/* 底部技术栈 tag */}
+      <div className="flex flex-wrap gap-1.5 pt-4 border-t border-divider">
+        {tags.map((t) => (
+          <span
+            key={t}
+            className="mono text-[10px] rounded-full border border-divider bg-bg-base/40 px-2 py-0.5 text-fg-tertiary"
+          >
+            {t}
+          </span>
+        ))}
+      </div>
     </div>
   );
 }

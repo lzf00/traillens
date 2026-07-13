@@ -34,15 +34,15 @@ export async function Nav() {
       </Link>
 
       {/* 中间链接:mobile 隐藏,md 起显示 */}
-      <div className="hidden md:flex items-center gap-5 text-sm">
+      <div className="hidden md:flex items-center gap-6 text-sm">
         <Link href="/trails" className="text-fg-secondary hover:text-fg-primary transition-colors">
-          Trails
+          作品集
         </Link>
         <Link href="/library" className="text-fg-secondary hover:text-fg-primary transition-colors">
-          Library
+          语义搜索
         </Link>
         <Link href="/settings" className="text-fg-secondary hover:text-fg-primary transition-colors">
-          Settings
+          设置
         </Link>
       </div>
 
