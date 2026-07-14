@@ -85,21 +85,21 @@ export default async function HomePage() {
             className="object-cover -z-20"
           />
         )}
-        {/* 蒙层:左侧压暗给文字对比,右侧透明让主体照片完整露出;
-           底部保留一点渐变过渡到下方 section 不硬切 */}
-        <div className="absolute inset-0 -z-10 pointer-events-none">
-          {/* 左→右:文字区暗,山峰主体亮 */}
-          <div className="absolute inset-0 bg-gradient-to-r from-bg-base/75 via-bg-base/25 to-transparent" />
-          {/* 底部渐变:hero 到下方 section 平滑过渡 */}
-          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-bg-base" />
-        </div>
+        {/* 只保留底部一点点渐变让下方 section 平滑过渡,照片本体完全原样展示 */}
+        <div className="absolute inset-x-0 bottom-0 h-24 -z-10 bg-gradient-to-b from-transparent to-bg-base pointer-events-none" />
         {!demo.hero_photo?.uri && <div className="absolute inset-0 -z-20 bg-bg-base" />}
 
         <div className="mx-auto w-full max-w-5xl">
           <p className="mono mb-6 text-fg-secondary">v0.0.1 · build in public</p>
 
-          {/* h1: mobile text-4xl 避免"AI 暗房"换行,md 起 text-7xl */}
-          <h1 className="font-display text-4xl leading-[1.1] text-fg-primary md:text-7xl md:leading-[1.05] drop-shadow-[0_2px_20px_rgba(0,0,0,0.6)]">
+          {/* h1: 多重 drop-shadow 让白字在任何亮/暗背景都可读,不用蒙层压照片 */}
+          <h1
+            className="font-display text-4xl leading-[1.1] text-white md:text-7xl md:leading-[1.05]"
+            style={{
+              textShadow:
+                "0 2px 6px rgba(0,0,0,0.85), 0 4px 24px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.9)",
+            }}
+          >
             给徒步的
             <br />
             <span className="text-accent-aurora">风光摄影师</span>
@@ -107,7 +107,13 @@ export default async function HomePage() {
             <span className="whitespace-nowrap">造一间 AI 暗房。</span>
           </h1>
 
-          <p className="mt-8 max-w-xl text-base md:text-xl text-fg-primary/90 leading-relaxed drop-shadow-[0_1px_8px_rgba(0,0,0,0.6)]">
+          <p
+            className="mt-8 max-w-xl text-base md:text-xl text-white/95 leading-relaxed"
+            style={{
+              textShadow:
+                "0 1px 4px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.6)",
+            }}
+          >
             一整次徒步的素材丢进去,AI 自动选片、点评、写游记,
             规划下次拍摄计划。
           </p>
