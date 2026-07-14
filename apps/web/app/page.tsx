@@ -92,13 +92,11 @@ export default async function HomePage() {
         <div className="mx-auto w-full max-w-5xl">
           <p className="mono mb-6 text-fg-secondary">v0.0.1 · build in public</p>
 
-          {/* h1: 多重 drop-shadow 让白字在任何亮/暗背景都可读,不用蒙层压照片 */}
+          {/* h1: 字重 font-bold + tracking-tight 让笔画本身承担对比度;
+             text-shadow 只留 1 层近距浓黑,不糊边 */}
           <h1
-            className="font-display text-4xl leading-[1.1] text-white md:text-7xl md:leading-[1.05]"
-            style={{
-              textShadow:
-                "0 2px 6px rgba(0,0,0,0.85), 0 4px 24px rgba(0,0,0,0.6), 0 1px 2px rgba(0,0,0,0.9)",
-            }}
+            className="font-display font-bold tracking-tight text-4xl leading-[1.1] text-white md:text-7xl md:leading-[1.02]"
+            style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}
           >
             给徒步的
             <br />
@@ -108,11 +106,8 @@ export default async function HomePage() {
           </h1>
 
           <p
-            className="mt-8 max-w-xl text-base md:text-xl text-white/95 leading-relaxed"
-            style={{
-              textShadow:
-                "0 1px 4px rgba(0,0,0,0.85), 0 2px 12px rgba(0,0,0,0.6)",
-            }}
+            className="mt-8 max-w-xl text-base md:text-xl text-white font-medium leading-relaxed"
+            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}
           >
             一整次徒步的素材丢进去,AI 自动选片、点评、写游记,
             规划下次拍摄计划。
@@ -141,9 +136,20 @@ export default async function HomePage() {
           </div>
         </div>
 
-        {/* 评分卡:浮在右下(桌面) / 底部(mobile),展示 AI 对 hero 图的真实分析 */}
+        {/* 评分卡:浮在右下(桌面) / 底部(mobile),展示 AI 对 hero 图的真实分析
+           带 label 让读者秒懂"这就是 AI 输出示例" */}
         {demo.hero_photo?.aesthetic && (
-          <ScoreCard photo={demo.hero_photo} className="absolute md:right-12 md:bottom-24 right-6 bottom-20 hidden md:block" />
+          <div className="hidden md:block absolute md:right-12 md:bottom-24 right-6 bottom-20 max-w-[320px]">
+            {/* label:AI 对这张背景照片的评分,视觉上是 caption */}
+            <div
+              className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-3 py-1 text-xs text-white/90 border border-white/20"
+              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
+            >
+              <span className="h-1.5 w-1.5 rounded-full bg-accent-aurora animate-pulse" />
+              AI 对这张照片的实测评分 ↓
+            </div>
+            <ScoreCard photo={demo.hero_photo} />
+          </div>
         )}
 
         {/* 向下滚动引导 */}
@@ -155,6 +161,10 @@ export default async function HomePage() {
       {/* mobile 评分卡:hero 下方独立 section(避免 overlap 主标题) */}
       {demo.hero_photo?.aesthetic && (
         <section className="md:hidden px-6 -mt-6 mb-12">
+          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-bg-raised px-3 py-1 text-xs text-fg-secondary border border-divider">
+            <span className="h-1.5 w-1.5 rounded-full bg-accent-aurora animate-pulse" />
+            AI 对上方这张照片的实测评分 ↑
+          </div>
           <ScoreCard photo={demo.hero_photo} />
         </section>
       )}
@@ -416,14 +426,14 @@ function ScoreCard({ photo, className = "" }: { photo: Photo; className?: string
         className
       }
     >
-      {/* 头部:verdict + 分数 */}
+      {/* 头部:verdict + 分数(verdict 换成中文更好懂) */}
       <div className="flex items-center justify-between mb-3">
-        <span className="inline-flex items-center gap-1 rounded-md bg-accent-aurora/15 text-accent-aurora text-xs px-2 py-0.5">
-          <Check size={12} /> keep
+        <span className="inline-flex items-center gap-1 rounded-md bg-accent-aurora/15 text-accent-aurora text-xs px-2 py-0.5 font-medium">
+          <Check size={12} /> 精选
         </span>
         <div className="text-right leading-none">
-          <div className="mono text-[10px] text-fg-tertiary">AI 综合</div>
-          <div className="font-display text-3xl text-fg-primary">
+          <div className="mono text-[10px] text-fg-tertiary uppercase tracking-wide">AI 综合分</div>
+          <div className="font-display text-3xl font-bold text-fg-primary mt-1">
             {overall.toFixed(1)}
           </div>
         </div>
