@@ -92,22 +92,22 @@ export default async function HomePage() {
         <div className="mx-auto w-full max-w-5xl">
           <p className="mono mb-6 text-fg-secondary">v0.0.1 · build in public</p>
 
-          {/* h1: 字重 font-bold + tracking-tight 让笔画本身承担对比度;
-             text-shadow 只留 1 层近距浓黑,不糊边 */}
+          {/* h1: 字重 + 颜色 + shadow 都调弱,让文字退到照片后作 caption 感,
+             照片才是主角。风光摄影师(绿字)保持鲜明,是唯一强调点 */}
           <h1
-            className="font-display font-bold tracking-tight text-4xl leading-[1.1] text-white md:text-7xl md:leading-[1.02]"
-            style={{ textShadow: "0 2px 8px rgba(0,0,0,0.8)" }}
+            className="font-display text-4xl leading-[1.1] text-white/80 md:text-7xl md:leading-[1.02]"
+            style={{ textShadow: "0 1px 4px rgba(0,0,0,0.55)" }}
           >
             给徒步的
             <br />
-            <span className="text-accent-aurora">风光摄影师</span>
+            <span className="text-accent-aurora/95">风光摄影师</span>
             <br />
             <span className="whitespace-nowrap">造一间 AI 暗房。</span>
           </h1>
 
           <p
-            className="mt-8 max-w-xl text-base md:text-xl text-white font-medium leading-relaxed"
-            style={{ textShadow: "0 1px 6px rgba(0,0,0,0.85)" }}
+            className="mt-8 max-w-xl text-base md:text-lg text-white/65 leading-relaxed"
+            style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
           >
             一整次徒步的素材丢进去,AI 自动选片、点评、写游记,
             规划下次拍摄计划。
