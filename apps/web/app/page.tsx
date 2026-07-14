@@ -88,21 +88,21 @@ export default async function HomePage() {
             v0.0.1 · build in public
           </p>
 
-          {/* Apple/xAI 式:超大字号,克制字重,极少色彩 */}
+          {/* Apple/xAI 式:克制字号(md:text-6xl = 60px),tracking-tighter 更紧凑 */}
           <h1
-            className="font-display text-5xl leading-[1.05] text-white/85 md:text-8xl md:leading-[0.98] tracking-tight max-w-4xl"
+            className="font-display text-4xl leading-[1.1] text-white/85 md:text-6xl md:leading-[1.05] tracking-tight max-w-3xl"
             style={{ textShadow: "0 1px 4px rgba(0,0,0,0.55)" }}
           >
             给徒步的<br />
-            <span className="text-accent-aurora/95">风光摄影师</span><br />
+            <span className="text-accent-aurora">风光摄影师</span>,<br />
             造一间 AI 暗房。
           </h1>
 
           <p
-            className="mt-10 max-w-xl text-base md:text-lg text-white/60 leading-relaxed"
+            className="mt-8 max-w-2xl text-sm md:text-base text-white/65 leading-relaxed"
             style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
           >
-            一整次徒步的素材丢进去 · AI 自动选片、点评、写游记、规划下次拍摄。
+            一整次徒步的素材丢进去,AI 自动选片、点评、写游记、规划下次拍摄。
           </p>
 
           <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4">
