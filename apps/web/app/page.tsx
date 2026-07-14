@@ -1,7 +1,7 @@
 import Link from "next/link";
 import Image from "next/image";
 import { cookies } from "next/headers";
-import { ArrowRight, Github, Users, Mountain, Cable, ChevronDown, ChevronUp, Check } from "lucide-react";
+import { ArrowRight, Github, ChevronDown, Check } from "lucide-react";
 import { apiFetch } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
@@ -33,9 +33,6 @@ type DemoData = {
 };
 
 async function fetchDemo(): Promise<DemoData> {
-  // 优先 env(LANDING_TRAIL_ID 手动 pin 一个真风光 trail),否则走后端 _demo/public
-  // 后端 pick_demo_trail 目前按 travelogue+photos+recency 排,会选到"名字风光其实
-  // 宝可梦"的 trail;env 是最可靠的兜底
   const pinned = process.env.LANDING_TRAIL_ID;
   try {
     const trailUrl = pinned
@@ -49,10 +46,8 @@ async function fetchDemo(): Promise<DemoData> {
     const keeps = arr.filter((x) => x.verdict === "keep");
     const pool = keeps.length ? keeps : arr;
     pool.sort((a, b) => (b.aesthetic?.overall ?? 0) - (a.aesthetic?.overall ?? 0));
-    const HERO_MIN = 6.5;
-    const GRID_MIN = 7.5;
-    const heroPhoto = pool.find((x) => (x.aesthetic?.overall ?? 0) >= HERO_MIN);
-    const gridPhotos = pool.filter((x) => (x.aesthetic?.overall ?? 0) >= GRID_MIN);
+    const heroPhoto = pool.find((x) => (x.aesthetic?.overall ?? 0) >= 6.5);
+    const gridPhotos = pool.filter((x) => (x.aesthetic?.overall ?? 0) >= 7.5);
     return {
       hero_photo: heroPhoto ?? pool[0] ?? null,
       gallery: gridPhotos.length >= 3 ? gridPhotos.slice(0, 6) : [],
@@ -72,243 +67,172 @@ export default async function HomePage() {
 
   return (
     <main id="top">
-      {/* ═════════════ HERO · 全屏照片 + 蒙层 + 中央文字 + 评分卡 ═════════════ */}
-      <section className="relative isolate flex min-h-[calc(100dvh-56px)] items-center px-6 md:px-12 pb-24 md:pb-32">
-        {/* 背景照片 */}
+      {/* ═════════════ 1. HERO · full-bleed 大照片 + 极简大字 ═════════════ */}
+      <section className="relative isolate flex min-h-[calc(100dvh-56px)] items-end px-6 md:px-16 pb-32 md:pb-40">
         {demo.hero_photo?.uri && (
           <Image
             src={demo.hero_photo.uri}
-            alt="风光摄影示例"
+            alt=""
             fill
             priority
             sizes="100vw"
             className="object-cover -z-20"
           />
         )}
-        {/* 只保留底部一点点渐变让下方 section 平滑过渡,照片本体完全原样展示 */}
-        <div className="absolute inset-x-0 bottom-0 h-24 -z-10 bg-gradient-to-b from-transparent to-bg-base pointer-events-none" />
+        {/* 底部收边过渡到下一屏 */}
+        <div className="absolute inset-x-0 bottom-0 h-40 -z-10 bg-gradient-to-b from-transparent to-bg-base pointer-events-none" />
         {!demo.hero_photo?.uri && <div className="absolute inset-0 -z-20 bg-bg-base" />}
 
-        <div className="mx-auto w-full max-w-5xl">
-          <p className="mono mb-6 text-fg-secondary">v0.0.1 · build in public</p>
+        <div className="mx-auto w-full max-w-6xl">
+          <p className="mono mb-6 text-white/60" style={{ textShadow: "0 1px 2px rgba(0,0,0,0.5)" }}>
+            v0.0.1 · build in public
+          </p>
 
-          {/* h1: 字重 + 颜色 + shadow 都调弱,让文字退到照片后作 caption 感,
-             照片才是主角。风光摄影师(绿字)保持鲜明,是唯一强调点 */}
+          {/* Apple/xAI 式:超大字号,克制字重,极少色彩 */}
           <h1
-            className="font-display text-4xl leading-[1.1] text-white/80 md:text-7xl md:leading-[1.02]"
+            className="font-display text-5xl leading-[1.05] text-white/85 md:text-8xl md:leading-[0.98] tracking-tight max-w-4xl"
             style={{ textShadow: "0 1px 4px rgba(0,0,0,0.55)" }}
           >
-            给徒步的
-            <br />
-            <span className="text-accent-aurora/95">风光摄影师</span>
-            <br />
-            <span className="whitespace-nowrap">造一间 AI 暗房。</span>
+            给徒步的<br />
+            <span className="text-accent-aurora/95">风光摄影师</span><br />
+            造一间 AI 暗房。
           </h1>
 
           <p
-            className="mt-8 max-w-xl text-base md:text-lg text-white/65 leading-relaxed"
+            className="mt-10 max-w-xl text-base md:text-lg text-white/60 leading-relaxed"
             style={{ textShadow: "0 1px 3px rgba(0,0,0,0.6)" }}
           >
-            一整次徒步的素材丢进去,AI 自动选片、点评、写游记,
-            规划下次拍摄计划。
+            一整次徒步的素材丢进去 · AI 自动选片、点评、写游记、规划下次拍摄。
           </p>
 
-          {/* CTA */}
-          <div className="mt-10 flex flex-wrap items-center gap-3">
+          <div className="mt-12 flex flex-wrap items-center gap-x-8 gap-y-4">
             {loggedIn ? (
               <>
                 <CTAPrimary href="/trails">继续到我的 Trails</CTAPrimary>
-                <CTAGhost href="/trails/new">新建 Trail</CTAGhost>
+                <LinkPlain href="/trails/new">新建 Trail →</LinkPlain>
               </>
             ) : (
               <>
                 <CTAPrimary href="/login">登录开始使用</CTAPrimary>
-                <CTAGhost href="/trails/demo">看示例作品集</CTAGhost>
-                <Link
-                  href="https://github.com/lzf00/traillens"
-                  target="_blank"
-                  className="inline-flex items-center gap-1.5 text-xs text-fg-secondary hover:text-fg-primary px-2 py-3"
-                >
-                  <Github size={12} /> GitHub
-                </Link>
+                <LinkPlain href="/trails/demo">看示例作品集 →</LinkPlain>
               </>
             )}
           </div>
         </div>
 
-        {/* 评分卡:浮在右下(桌面) / 底部(mobile),展示 AI 对 hero 图的真实分析
-           带 label 让读者秒懂"这就是 AI 输出示例" */}
-        {demo.hero_photo?.aesthetic && (
-          <div className="hidden md:block absolute md:right-12 md:bottom-24 right-6 bottom-20 max-w-[320px]">
-            {/* label:AI 对这张背景照片的评分,视觉上是 caption */}
-            <div
-              className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-black/60 backdrop-blur px-3 py-1 text-xs text-white/90 border border-white/20"
-              style={{ textShadow: "0 1px 4px rgba(0,0,0,0.5)" }}
-            >
-              <span className="h-1.5 w-1.5 rounded-full bg-accent-aurora animate-pulse" />
-              AI 对这张照片的实测评分 ↓
-            </div>
-            <ScoreCard photo={demo.hero_photo} />
-          </div>
-        )}
-
-        {/* 向下滚动引导 */}
-        <div className="absolute bottom-4 left-1/2 -translate-x-1/2 text-fg-tertiary animate-bounce">
-          <ChevronDown size={20} />
+        {/* 底部滚动引导 */}
+        <div className="absolute bottom-6 left-1/2 -translate-x-1/2 text-white/40 animate-bounce">
+          <ChevronDown size={24} />
         </div>
       </section>
 
-      {/* mobile 评分卡:hero 下方独立 section(避免 overlap 主标题) */}
+      {/* ═════════════ 2. AI 输出示例 · 大照片 + 卡片(Apple 产品照风) ═════════════ */}
       {demo.hero_photo?.aesthetic && (
-        <section className="md:hidden px-6 -mt-6 mb-12">
-          <div className="mb-2 inline-flex items-center gap-1.5 rounded-full bg-bg-raised px-3 py-1 text-xs text-fg-secondary border border-divider">
-            <span className="h-1.5 w-1.5 rounded-full bg-accent-aurora animate-pulse" />
-            AI 对上方这张照片的实测评分 ↑
-          </div>
-          <ScoreCard photo={demo.hero_photo} />
-        </section>
-      )}
-
-      {/* ═════════════ 作品网格 · 让人看见效果 ═════════════ */}
-      {demo.gallery.length > 0 && (
-        <section className="px-6 md:px-12 py-24">
+        <section className="px-6 md:px-16 py-24 md:py-40">
           <div className="mx-auto max-w-6xl">
-            <div className="mb-8 flex items-baseline justify-between gap-4 flex-wrap">
-              <div>
-                <p className="mono mb-2 text-fg-tertiary">看看它出什么样</p>
-                <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary">
-                  AI 从这一组照片里挑出的精选。
-                </h2>
-              </div>
-              {demo.demo_trail_id && (
-                <Link
-                  href={`/trails/${demo.demo_trail_id}/share`}
-                  className="group inline-flex items-center gap-1.5 text-sm text-accent-aurora hover:underline"
-                >
-                  看完整分享页
-                  <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
-                </Link>
-              )}
+            {/* 前置说明 */}
+            <div className="mb-16 max-w-3xl">
+              <p className="mono mb-4 text-fg-tertiary">看它怎么工作</p>
+              <h2 className="font-display text-4xl md:text-6xl leading-tight text-fg-primary tracking-tight">
+                AI 会这样<br />
+                <span className="text-accent-aurora">读你的照片</span>。
+              </h2>
+              <p className="mt-6 text-base md:text-lg text-fg-secondary max-w-xl leading-relaxed">
+                八维评分、自然语言点评、精选建议 —— 全部由模型基于你上传的原图给出。下面是它对这张雪山的真实输出。
+              </p>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
-              {demo.gallery.map((p) => (
-                <a
-                  key={p.photo_id}
-                  href={
-                    demo.demo_trail_id
-                      ? `/trails/${demo.demo_trail_id}/share#p-${p.photo_id}`
-                      : "#"
-                  }
-                  className="group photo-frame relative aspect-[3/2] bg-bg-overlay overflow-hidden"
-                >
-                  <Image
-                    src={p.uri}
-                    alt=""
-                    fill
-                    sizes="(max-width: 768px) 50vw, 33vw"
-                    className="object-cover transition-transform duration-DEFAULT ease-trail group-hover:scale-[1.03]"
-                  />
-                  {p.aesthetic?.overall != null && (
-                    <span className="absolute bottom-2 right-2 status-pill backdrop-blur text-xs text-accent-aurora">
-                      {p.aesthetic.overall.toFixed(1)}
-                    </span>
-                  )}
-                </a>
-              ))}
+
+            {/* 大照片 + 浮动卡片 · Apple 产品照式布局 */}
+            <div className="relative rounded-2xl overflow-hidden aspect-[16/10] bg-bg-overlay">
+              <Image
+                src={demo.hero_photo.uri}
+                alt=""
+                fill
+                sizes="(max-width: 1200px) 100vw, 1200px"
+                className="object-cover"
+              />
+              {/* 桌面:右下浮卡;移动:section 下方独立 */}
+              <div className="hidden md:block absolute right-6 bottom-6 max-w-[340px]">
+                <ScoreCard photo={demo.hero_photo} />
+              </div>
+            </div>
+            {/* 移动:卡片独立成一块 */}
+            <div className="mt-6 md:hidden">
+              <ScoreCard photo={demo.hero_photo} />
             </div>
           </div>
         </section>
       )}
 
-      {/* ═════════════ 三大能力 · 卡片 ═════════════ */}
-      <section className="px-6 md:px-12 py-24 border-t border-divider">
+      {/* ═════════════ 3. 三大能力 · Apple 风极简排列(去卡片装饰) ═════════════ */}
+      <section className="px-6 md:px-16 py-24 md:py-40 border-t border-divider">
         <div className="mx-auto max-w-6xl">
-          <div className="mb-12 max-w-2xl">
-            <p className="mono mb-2 text-fg-tertiary">TrailLens 是什么</p>
-            <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary">
-              一个专为风光摄影师做的
-              <br />
-              自动化后期助手。
+          <div className="mb-20 max-w-3xl">
+            <p className="mono mb-4 text-fg-tertiary">TrailLens 是什么</p>
+            <h2 className="font-display text-4xl md:text-6xl leading-tight text-fg-primary tracking-tight">
+              一个专为风光摄影师做的<br />
+              <span className="text-accent-aurora">自动化后期助手</span>。
             </h2>
           </div>
-          <div className="grid gap-4 md:grid-cols-3">
-            <Card
-              badge="04"
-              icon={<Users size={22} />}
-              title="四个 AI 智能体协作"
-              body="选片、点评、写游记、规划下一次 —— 每步都留决策痕迹。想手动接管随时打断,继续跑不丢进度。"
-              tags={["选片", "点评", "游记", "计划"]}
+          <div className="grid gap-12 md:gap-16 md:grid-cols-3">
+            <Feature
+              n="04"
+              title="智能体协作"
+              body="选片、点评、写游记、规划下一次。四个 AI 一起干,每步都留决策痕迹,想手动接管随时打断。"
             />
-            <Card
-              badge="5K+"
-              icon={<Mountain size={22} />}
-              title="专为风光调过的美学模型"
+            <Feature
+              n="5K+"
+              title="专为风光的美学模型"
               body="5000+ 张风光原片微调,评构图、光线、氛围、情绪比通用模型更懂你。开源权重可自托管。"
-              tags={["构图", "光线", "氛围", "情感"]}
             />
-            <Card
-              badge="3"
-              icon={<Cable size={22} />}
-              title="打通 Claude / Cursor"
-              body="EXIF、天气、日月轨迹三个 MCP server 开源,直接挂到 Claude Desktop 或 Cursor,不用再自己造工具。"
-              tags={["EXIF", "天气", "日月轨迹"]}
+            <Feature
+              n="03"
+              title="打通 Claude · Cursor"
+              body="EXIF、天气、日月轨迹三个独立 MCP server,可直接挂到任意 LLM 客户端,不用自己再造工具。"
             />
           </div>
         </div>
       </section>
 
-      {/* ═════════════ 3 步流程 ═════════════ */}
-      <section className="px-6 md:px-12 py-24 border-t border-divider">
+      {/* ═════════════ 4. 三步走 · 大字克制排版 ═════════════ */}
+      <section className="px-6 md:px-16 py-24 md:py-40 border-t border-divider">
         <div className="mx-auto max-w-6xl">
-          <p className="mono mb-2 text-fg-tertiary">怎么用</p>
-          <h2 className="font-display text-3xl md:text-4xl font-bold text-fg-primary mb-12">
-            三步走。
-          </h2>
-          <div className="grid gap-8 md:grid-cols-3">
-            <Step
-              n="01"
-              title="上传一次徒步的所有照片"
-              body="拖入 RAW / JPG,后台并行处理,自动解析 EXIF、生成缩略图。"
-            />
-            <Step
-              n="02"
-              title="按 Run,让 AI 干活"
-              body="美学模型逐张打分,critic 写点评,story 生成游记,planner 建议下次拍摄光线与机位。"
-            />
-            <Step
-              n="03"
-              title="导出、分享、找回"
-              body="下载精选 zip,一键出小红书文,或用中文语义搜索翻整个照片库。"
-            />
+          <div className="mb-20 max-w-3xl">
+            <p className="mono mb-4 text-fg-tertiary">怎么用</p>
+            <h2 className="font-display text-4xl md:text-6xl leading-tight text-fg-primary tracking-tight">
+              三步走。
+            </h2>
+          </div>
+          <div className="grid gap-12 md:gap-8 md:grid-cols-3">
+            <Step n="01" title="上传素材" body="拖入一次徒步的 RAW / JPG,后台并行处理,自动解析 EXIF、生成缩略图。" />
+            <Step n="02" title="让 AI 干活" body="美学模型逐张打分,critic 写点评,story 生成游记,planner 建议下次机位。" />
+            <Step n="03" title="导出 / 分享 / 找回" body="下载精选 zip,一键出小红书文,或用中文语义搜索翻整个照片库。" />
           </div>
 
-          {/* 回顶部 */}
-          <div className="mt-16 flex justify-center">
+          <div className="mt-24 flex justify-center">
             <a
               href="#top"
-              className="group inline-flex items-center gap-1.5 rounded-full border border-divider bg-bg-raised/40 px-4 py-2 text-xs text-fg-secondary hover:text-fg-primary hover:border-accent-aurora/60 transition-all"
+              className="group inline-flex items-center gap-1.5 text-xs text-fg-tertiary hover:text-fg-primary transition-colors"
             >
-              <ChevronUp size={14} className="transition-transform group-hover:-translate-y-0.5" />
+              <span className="inline-block rotate-180">↓</span>
               回顶部
             </a>
           </div>
         </div>
       </section>
 
-      {/* ═════════════ Footer ═════════════ */}
-      <footer className="px-6 md:px-12 py-8 border-t border-divider">
+      {/* ═════════════ Footer · 极简 ═════════════ */}
+      <footer className="px-6 md:px-16 py-10 border-t border-divider">
         <div className="mx-auto max-w-6xl flex flex-wrap items-center justify-between gap-4 text-xs text-fg-tertiary">
           <p className="mono">© 2026 TrailLens · MIT 开源</p>
-          <div className="flex gap-4">
+          <div className="flex gap-6">
             <Link href="/trails/demo" className="hover:text-fg-primary">示例</Link>
             <Link href="/library" className="hover:text-fg-primary">语义搜索</Link>
-            <a
-              href="https://github.com/lzf00/traillens"
-              target="_blank"
-              rel="noreferrer"
-              className="hover:text-fg-primary"
-            >
+            <a href="https://github.com/lzf00/traillens" target="_blank" rel="noreferrer" className="hover:text-fg-primary">
               GitHub
+            </a>
+            <a href="https://www.zorotreeking.online/" target="_blank" rel="noreferrer" className="hover:text-fg-primary">
+              @zoro ↗
             </a>
           </div>
         </div>
@@ -317,12 +241,12 @@ export default async function HomePage() {
   );
 }
 
-/* ───── UI 原子 ───── */
+/* ───── 原子 ───── */
 function CTAPrimary({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className="group inline-flex items-center gap-2 rounded-md bg-accent-aurora px-5 py-3 text-sm font-medium text-bg-base transition-all hover:bg-accent-aurora/90 shadow-lg shadow-accent-aurora/20"
+      className="group inline-flex items-center gap-2 rounded-full bg-white text-black px-6 py-3 text-sm font-medium transition-all hover:bg-white/90"
     >
       {children}
       <ArrowRight size={14} className="transition-transform group-hover:translate-x-0.5" />
@@ -330,80 +254,43 @@ function CTAPrimary({ href, children }: { href: string; children: React.ReactNod
   );
 }
 
-function CTAGhost({ href, children }: { href: string; children: React.ReactNode }) {
+function LinkPlain({ href, children }: { href: string; children: React.ReactNode }) {
   return (
     <Link
       href={href}
-      className="rounded-md border border-fg-primary/30 backdrop-blur px-5 py-3 text-sm text-fg-primary transition-all hover:border-accent-glacier hover:text-accent-glacier"
+      className="text-sm text-white/70 hover:text-white transition-colors"
+      style={{ textShadow: "0 1px 3px rgba(0,0,0,0.5)" }}
     >
       {children}
     </Link>
   );
 }
 
-function Card({
-  badge, icon, title, body, tags,
-}: {
-  badge: string;
-  icon: React.ReactNode;
-  title: string;
-  body: string;
-  tags: string[];
-}) {
+function Feature({ n, title, body }: { n: string; title: string; body: string }) {
   return (
-    <div className="landing-card group relative overflow-hidden rounded-xl border border-divider bg-bg-raised p-6
-                    shadow-sm
-                    transition-all duration-DEFAULT ease-trail
-                    hover:border-accent-aurora hover:-translate-y-1
-                    hover:shadow-xl hover:shadow-accent-aurora/10">
-      {/* 顶部装饰细线,hover 时变绿(light 常态就有淡绿:见 globals.css) */}
-      <div className="landing-card-topline absolute inset-x-0 top-0 h-0.5 bg-divider transition-colors group-hover:bg-accent-aurora" />
-
-      {/* 头部:大数字 + 实心 icon */}
-      <div className="mb-6 flex items-center justify-between">
-        <div className="font-display text-4xl font-bold leading-none text-accent-aurora tracking-tight">
-          {badge}
-        </div>
-        <div className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-accent-aurora text-bg-base shadow-lg shadow-accent-aurora/40">
-          {icon}
-        </div>
+    <div>
+      <div className="font-display text-5xl md:text-6xl font-medium text-accent-aurora tracking-tight leading-none mb-6">
+        {n}
       </div>
-
-      {/* 标题 */}
-      <h3 className="font-display text-xl font-semibold text-fg-primary mb-2 leading-snug">
+      <h3 className="font-display text-xl md:text-2xl text-fg-primary mb-3 tracking-tight">
         {title}
       </h3>
-      <p className="text-sm text-fg-secondary leading-relaxed mb-5">{body}</p>
-
-      {/* 底部技术栈 tag(中文不用 mono,字号 12,更清晰) */}
-      <div className="flex flex-wrap gap-2 pt-4 border-t border-divider">
-        {tags.map((t) => (
-          <span
-            key={t}
-            className="landing-tag text-xs rounded-full border border-divider bg-bg-base px-2.5 py-1 text-fg-secondary transition-colors group-hover:border-accent-aurora/40 group-hover:text-accent-aurora"
-          >
-            {t}
-          </span>
-        ))}
-      </div>
+      <p className="text-sm md:text-base text-fg-secondary leading-relaxed">{body}</p>
     </div>
   );
 }
 
 function Step({ n, title, body }: { n: string; title: string; body: string }) {
   return (
-    <div className="relative">
-      {/* 大号编号 · 抢眼但克制 */}
-      <div className="mono text-6xl md:text-7xl font-bold text-accent-glacier/20 leading-none mb-2 select-none">
-        {n}
-      </div>
-      <h4 className="font-display text-xl md:text-2xl text-fg-primary mb-3">{title}</h4>
-      <p className="text-sm text-fg-secondary leading-relaxed">{body}</p>
+    <div className="border-t border-divider pt-6">
+      <div className="mono text-fg-tertiary mb-3">{n}</div>
+      <h4 className="font-display text-xl md:text-2xl text-fg-primary mb-3 tracking-tight">{title}</h4>
+      <p className="text-sm md:text-base text-fg-secondary leading-relaxed">{body}</p>
     </div>
   );
 }
 
-/* ───── ScoreCard · AI 对 hero 照片的实测输出卡 ───── */
+/* ───── ScoreCard(保留但独立展示) ───── */
 const DIM_LABELS: Array<[keyof Aesthetic, string]> = [
   ["composition", "构图"],
   ["visual_elements", "视觉"],
@@ -414,58 +301,46 @@ const DIM_LABELS: Array<[keyof Aesthetic, string]> = [
   ["gestalt", "格式塔"],
 ];
 
-function ScoreCard({ photo, className = "" }: { photo: Photo; className?: string }) {
+function ScoreCard({ photo }: { photo: Photo }) {
   const a = photo.aesthetic ?? {};
   const overall = a.overall ?? 0;
   const critique = photo.critique ?? "";
 
   return (
-    <div
-      className={
-        "w-[300px] rounded-lg border border-divider/60 bg-bg-base/85 backdrop-blur-md shadow-2xl p-4 " +
-        className
-      }
-    >
-      {/* 头部:verdict + 分数(verdict 换成中文更好懂) */}
-      <div className="flex items-center justify-between mb-3">
-        <span className="inline-flex items-center gap-1 rounded-md bg-accent-aurora/15 text-accent-aurora text-xs px-2 py-0.5 font-medium">
+    <div className="w-full rounded-2xl border border-divider/60 bg-bg-base/90 backdrop-blur-xl shadow-2xl p-5">
+      <div className="flex items-center justify-between mb-4">
+        <span className="inline-flex items-center gap-1 rounded-full bg-accent-aurora/15 text-accent-aurora text-xs px-2.5 py-1 font-medium">
           <Check size={12} /> 精选
         </span>
         <div className="text-right leading-none">
           <div className="mono text-[10px] text-fg-tertiary uppercase tracking-wide">AI 综合分</div>
-          <div className="font-display text-3xl font-bold text-fg-primary mt-1">
+          <div className="font-display text-4xl font-bold text-fg-primary mt-1 tracking-tight">
             {overall.toFixed(1)}
           </div>
         </div>
       </div>
 
-      {/* 8 维 bar */}
-      <div className="grid grid-cols-2 gap-x-3 gap-y-1.5 mb-3">
+      <div className="grid grid-cols-2 gap-x-3 gap-y-2 mb-4">
         {DIM_LABELS.map(([k, label]) => {
           const v = (a[k] as number | undefined) ?? 0;
           const pct = Math.min(100, Math.max(0, v * 10));
           return (
-            <div key={k} className="flex items-center gap-1.5">
-              <span className="text-[10px] text-fg-tertiary shrink-0 w-8">{label}</span>
+            <div key={k} className="flex items-center gap-2">
+              <span className="text-[11px] text-fg-tertiary shrink-0 w-9">{label}</span>
               <div className="h-1 flex-1 rounded-full bg-fg-tertiary/20 overflow-hidden">
-                <div
-                  className="h-full bg-accent-aurora rounded-full"
-                  style={{ width: `${pct}%` }}
-                />
+                <div className="h-full bg-accent-aurora rounded-full" style={{ width: `${pct}%` }} />
               </div>
-              <span className="mono text-[10px] text-fg-secondary w-6 text-right">
-                {v.toFixed(1)}
-              </span>
+              <span className="mono text-[11px] text-fg-secondary w-7 text-right">{v.toFixed(1)}</span>
             </div>
           );
         })}
       </div>
 
-      {/* critique 摘要 */}
       {critique && (
-        <p className="text-xs text-fg-secondary leading-snug border-t border-divider/40 pt-3">
-          <span className="mono text-fg-tertiary">AI 点评 · </span>
-          {critique.length > 70 ? critique.slice(0, 70) + "…" : critique}
+        <p className="text-xs text-fg-secondary leading-relaxed border-t border-divider/40 pt-3">
+          <span className="mono text-fg-tertiary uppercase tracking-wide">AI 点评</span>
+          <br />
+          <span className="mt-1 block">{critique.length > 90 ? critique.slice(0, 90) + "…" : critique}</span>
         </p>
       )}
     </div>
