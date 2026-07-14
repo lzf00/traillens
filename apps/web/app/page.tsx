@@ -85,8 +85,14 @@ export default async function HomePage() {
             className="object-cover -z-20"
           />
         )}
-        {/* 蒙层:整体压暗 + 顶部到底渐变提高文字对比 */}
-        <div className="absolute inset-0 -z-10 bg-gradient-to-b from-bg-base/70 via-bg-base/50 to-bg-base pointer-events-none" />
+        {/* 蒙层:左侧压暗给文字对比,右侧透明让主体照片完整露出;
+           底部保留一点渐变过渡到下方 section 不硬切 */}
+        <div className="absolute inset-0 -z-10 pointer-events-none">
+          {/* 左→右:文字区暗,山峰主体亮 */}
+          <div className="absolute inset-0 bg-gradient-to-r from-bg-base/75 via-bg-base/25 to-transparent" />
+          {/* 底部渐变:hero 到下方 section 平滑过渡 */}
+          <div className="absolute inset-x-0 bottom-0 h-32 bg-gradient-to-b from-transparent to-bg-base" />
+        </div>
         {!demo.hero_photo?.uri && <div className="absolute inset-0 -z-20 bg-bg-base" />}
 
         <div className="mx-auto w-full max-w-5xl">
