@@ -6,6 +6,7 @@
 
 import Link from "next/link";
 import { cookies, headers } from "next/headers";
+import { ExternalLink } from "lucide-react";
 import { ThemeToggle } from "./ThemeToggle";
 
 async function fetchMe(): Promise<{ email: string; name: string | null } | null> {
@@ -47,6 +48,17 @@ export async function Nav() {
       </div>
 
       <div className="flex items-center gap-2 md:gap-3 text-sm shrink-0">
+        {/* 作者主页 · 外链 */}
+        <a
+          href="https://www.zorotreeking.online/"
+          target="_blank"
+          rel="noreferrer"
+          title="作者主页 · zorotreeking.online"
+          className="inline-flex items-center gap-1 text-xs text-fg-tertiary hover:text-accent-aurora transition-colors"
+        >
+          <span className="hidden sm:inline">@zoro</span>
+          <ExternalLink size={12} />
+        </a>
         <ThemeToggle />
         {me ? (
           <>
